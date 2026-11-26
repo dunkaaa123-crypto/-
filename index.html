@@ -152,6 +152,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 @media(prefers-reduced-motion:reduce){aside,aside summary::before{transition:none}}
 #me{font-size:13px;font-weight:700;white-space:nowrap}
 #me .chip{margin-left:4px}
+#me select{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--ink);border-radius:4px;background:var(--bg);color:var(--ink);margin-right:8px}
 .noadmin .adm{display:none!important}
 .reg{border:2px solid var(--red);border-radius:4px;padding:14px 16px;margin-bottom:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .reg b{font-size:16px}
@@ -195,7 +196,8 @@ const ymd=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 const NOW=new Date();const TODAY=ymd(NOW);const YEAR=String(NOW.getFullYear());const MONTH=TODAY.slice(0,7);
 const addDays=n=>{const d=new Date(NOW);d.setDate(d.getDate()+n);return ymd(d)};
 const blank=v=>v===undefined||v===null||v==='';
-const ORG='AIDataPlatform';
+let ORGCFG={name:'AIDataPlatform',teams:[{id:'t1',name:'영업1팀'},{id:'t2',name:'영업2팀'}]};
+const orgName=()=>ORGCFG.name||'AIDataPlatform';
 
 /* ---------- 영업단계 (관리자 설정) ---------- */
 const REQ_OPTS={amount:'매출 합계',cost:'예상 원가',closeDate:'예상 수주일',product:'솔루션/상품',partner:'매출처(파트너)',compete:'경쟁사'};
@@ -210,7 +212,8 @@ const stageMissing=(o,st)=>(STAGES.find(s=>s.k===st)?.req||[]).filter(k=>k==='am
 const COMPS=[['amtSW','SW 라이선스'],['amtHW','HW'],['amtSvc','용역(M/M)'],['amtMA','유지보수']];
 const LOST_REASONS=['가격','기술/기능 부족','고객 관계','경쟁사 선호','예산 취소/보류','일정','기타'];
 const KINDS={'p-cost':'원가산정','p-order':'수주품의','p-exec':'실행/판매품의','p-demo':'검수조건부/Demo','p-contract':'계약','p-purchase':'구매요청','p-direct':'판매직접비'};
-const ROLES_L=['영업대표','팀장','본부장'];
+const ROLES_L=['영업대표','팀장','사업부장'];
+const normRole=r=>r==='본부장'?'사업부장':(ROLES_L.includes(r)?r:'영업대표');
 
 /* ---------- 메뉴 트리 (대 / 중 / 소) ---------- */
 const MENU=[
@@ -230,7 +233,7 @@ const MENU=[
   {n:'채권',c:[['ar','채권 현황'],['armonth','월별 채권회수 계획']]},
   {n:'사후관리',c:[['vendor','협력업체(외주인력) 평가'],['vendorsum','협력업체 종합평가 현황']]}]},
  {n:'시스템 관리',c:[
-  {n:'설정',c:[['users','사용자 · 권한'],['stages','영업단계 설정']]}]}
+  {n:'설정',c:[['org','조직 · 팀 설정'],['users','사용자 · 권한'],['stages','영업단계 설정']]}]}
 ];
 const LEAF={};MENU.forEach(a=>a.c.forEach(b=>b.c.forEach(([id,t])=>LEAF[id]={t,path:[a.n,b.n]})));
 
@@ -250,7 +253,7 @@ const SCHEMA={
   {k:'amtSW',l:'SW 라이선스',t:'num'},{k:'amtHW',l:'HW',t:'num'},{k:'amtSvc',l:'용역 (M/M)',t:'num'},{k:'amtMA',l:'유지보수',t:'num'},
   {k:'amount',l:'매출 합계 (자동)',t:'sum'},{k:'cost',l:'예상 원가',t:'num'},
   {k:'prob',l:'확도 %',t:'num',hint:'비우면 단계 기본값'},{k:'compete',l:'경쟁사',t:'list',src:'compete'},
-  {k:'dept',l:'본부',t:'list',src:'dept',def:ORG},{k:'note',l:'메모',t:'ta',w:2}]},
+  {k:'dept',l:'사업부',t:'list',src:'dept',def:()=>orgName()},{k:'note',l:'메모',t:'ta',w:2}]},
  activities:{name:'영업활동',fields:[
   {k:'oppId',l:'영업기회 불러오기',t:'opp',w:2,hint:'고객사나 기회명을 입력해 고르면 고객·담당이 채워집니다'},
   {k:'date',l:'활동일',t:'date',req:1,def:()=>TODAY},{k:'type',l:'활동 유형',t:'sel',opt:['방문','미팅','전화','데모/PoC','제안발표','기타']},
@@ -261,7 +264,7 @@ const SCHEMA={
   {k:'kind',l:'품의 구분',t:'sel',opt:Object.values(KINDS)},
   {k:'status',l:'상태',t:'sel',opt:['작성중','결재요청','승인','반려'],def:'작성중'},{k:'oppId',l:'영업기회 불러오기',t:'opp',w:2},
   {k:'title',l:'제목',req:1,w:2},{k:'amount',l:'금액 (백만원)',t:'num'},{k:'cost',l:'원가 (백만원)',t:'num'},
-  {k:'requester',l:'요청자',t:'list',src:'owner',def:meDef},{k:'approver',l:'결재자',t:'list',src:'owner',hint:'이 사람만 승인할 수 있습니다'},{k:'memo',l:'품의 내용 / 결재 의견',t:'ta',w:2}]},
+  {k:'requester',l:'요청자',t:'list',src:'owner',def:meDef},{k:'approver',l:'결재자',t:'list',src:'owner',def:()=>myLeader(),hint:'이 사람만 승인할 수 있습니다'},{k:'memo',l:'품의 내용 / 결재 의견',t:'ta',w:2}]},
  customers:{name:'고객',fields:[
   {k:'name',l:'고객사명',req:1},{k:'kind',l:'구분',t:'sel',opt:['매출처','End User','파트너']},{k:'industry',l:'업종',t:'list',src:'industry'},
   {k:'owner',l:'영업담당',t:'list',src:'owner',def:meDef},{k:'contact',l:'고객 담당자'},{k:'phone',l:'연락처'},{k:'email',l:'이메일',w:2},{k:'note',l:'메모',t:'ta',w:2}]},
@@ -275,20 +278,28 @@ const SCHEMA={
 };
 const RAW={},D={};Object.keys(SCHEMA).forEach(k=>{RAW[k]=[];D[k]=[]});
 let REPS={},ROLES={},repsLoaded=false;
-const ME={id:null,rep:'',role:'영업대표',admin:false,full:true};
+const ME={id:null,rep:'',role:'영업대표',team:'',admin:false,full:true};
 const OWNF={opps:'owner',activities:'owner',leads:'owner',receivables:'owner',approvals:'requester'};
 const F={plBy:'owner',rPeriod:'month'};
 let db=null,canWrite=true,M=null,STG=null;
 let TABS=['home'];try{const s=JSON.parse(localStorage.getItem('sh_tabs')||'null');if(Array.isArray(s)){const v=s.filter(x=>LEAF[x]);if(v.length)TABS=v}}catch(e){}
 const saveTabs=()=>{try{localStorage.setItem('sh_tabs',JSON.stringify(TABS))}catch(e){}};
 
+const teamName=id=>ORGCFG.teams.find(t=>t.id===id)?.name||'';
+const users=()=>Object.entries(REPS).map(([id,r])=>({id,name:String(r.name||''),role:normRole(ROLES[id]?.role),team:ROLES[id]?.team||''}));
+const teamOf=name=>{const u=users().find(x=>x.name===name);return u?u.team:''};
+const myLeader=()=>{const us=users();const l=ME.role==='팀장'||ME.role==='사업부장'?us.find(u=>u.role==='사업부장'&&u.id!==ME.id):(us.find(u=>u.role==='팀장'&&u.team&&u.team===ME.team)||us.find(u=>u.role==='사업부장'));return l?l.name:''};
 function refreshMe(){
- ME.rep=ME.id&&REPS[ME.id]?String(REPS[ME.id].name||''):'';
- ME.role=ME.id&&ROLES[ME.id]?.role||'영업대표';
- ME.full=ME.admin||!ME.id||['팀장','본부장'].includes(ME.role);
+ const me=ME.id?users().find(u=>u.id===ME.id):null;
+ ME.rep=me?me.name:'';ME.role=me?me.role:(ME.id&&ROLES[ME.id]?normRole(ROLES[ME.id].role):'영업대표');ME.team=ME.id&&ROLES[ME.id]?.team||'';
+ ME.full=ME.admin||!ME.id||ME.role==='사업부장';
+ if(!ME.full)F.scope='';
+ if(F.scope&&!ORGCFG.teams.some(t=>t.id===F.scope))F.scope='';
  document.body.classList.toggle('noadmin',!ME.admin);
- $('#me').innerHTML=ME.id?`${esc(ME.rep||'미등록')}<span class="chip ${ME.full?'ink':''}">${ME.admin?'관리자':esc(ME.role)}</span>`:'';
- for(const c of Object.keys(SCHEMA)){const f=OWNF[c];D[c]=(ME.full||!f)?RAW[c]:RAW[c].filter(x=>(ME.rep&&x[f]===ME.rep)||(c==='approvals'&&ME.rep&&x.approver===ME.rep))}
+ $('#me').innerHTML=ME.id?`${ME.full?`<select id="scopeSel" aria-label="조회 범위"><option value="">${esc(orgName())} 전체</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}" ${t.id===F.scope?'selected':''}>${esc(t.name)}</option>`).join('')}</select> `:''}${esc(ME.rep||'미등록')}<span class="chip ${ME.full?'ink':''}">${ME.admin?'관리자':esc(ME.role)}${!ME.full&&ME.team?' · '+esc(teamName(ME.team)):''}</span>`:'';
+ const tm=new Map(users().map(u=>[u.name,u.team]));
+ const ok=n=>{if(ME.full)return !F.scope||tm.get(n)===F.scope;if(ME.rep&&n===ME.rep)return true;return ME.role==='팀장'&&!!ME.team&&tm.get(n)===ME.team};
+ for(const c of Object.keys(SCHEMA)){const f=OWNF[c];D[c]=!f?RAW[c]:RAW[c].filter(x=>ok(x[f])||(c==='approvals'&&ME.rep&&x.approver===ME.rep))}
 }
 
 const oppName=id=>{const o=RAW.opps.find(x=>x.id===id);return o?o.name:''};
@@ -311,7 +322,7 @@ const lastQuote=o=>Array.isArray(o.quotes)&&o.quotes.length?o.quotes[o.quotes.le
 function dl(){
  const L={customer:uniq([...RAW.customers.map(c=>c.name),...RAW.opps.map(o=>o.customer),...RAW.opps.map(o=>o.partner)]),
   owner:uniq([...Object.values(REPS).map(r=>r.name),...RAW.opps.map(o=>o.owner),...RAW.activities.map(a=>a.owner),...RAW.leads.map(l=>l.owner)]),
-  dept:uniq([ORG,...RAW.opps.map(o=>o.dept)]),product:uniq([...RAW.opps.map(o=>o.product),...RAW.leads.map(l=>l.interest)]),industry:uniq(RAW.customers.map(c=>c.industry)),vendor:uniq(RAW.vendors.map(v=>v.name)),
+  dept:uniq([orgName(),...RAW.opps.map(o=>o.dept)]),product:uniq([...RAW.opps.map(o=>o.product),...RAW.leads.map(l=>l.interest)]),industry:uniq(RAW.customers.map(c=>c.industry)),vendor:uniq(RAW.vendors.map(v=>v.name)),
   compete:uniq([...RAW.opps.map(o=>o.compete),...RAW.opps.map(o=>o.lost?.winner)])};
  return Object.entries(L).map(([k,a])=>`<datalist id="dl_${k}">${a.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`).join('')+
   `<datalist id="dl_opps">${[...D.opps].sort((a,b)=>(isOpen(b)-isOpen(a))||String(a.customer).localeCompare(String(b.customer),'ko')).map(o=>`<option value="${esc(oppLabel(o))}">${esc(o.stage)} · ${fmt(o.amount)}백만원</option>`).join('')}</datalist>`;
@@ -331,7 +342,7 @@ function vHome(){
  const wait=D.approvals.filter(a=>a.status==='결재요청').slice(0,6);
  const recent=[...D.activities].sort((a,b)=>(b.date||'')>(a.date||'')?1:-1).slice(0,8);
  const sample=Object.values(RAW).some(a=>a.some(x=>x.sample));
- return head('영업 대시보드',`${esc(TODAY)} 기준 · 금액 단위 백만원${ME.full?'':' · 내 담당 건만 표시'}`,newBtn('activities','활동 기록')+newBtn('opps','기회 등록','','btn'))+
+ return head('영업 대시보드',`${esc(TODAY)} 기준 · 금액 단위 백만원${ME.full?(F.scope?' · '+esc(teamName(F.scope))+'만 표시':''):ME.role==='팀장'?' · '+esc(teamName(ME.team)||'팀 미지정')+' 팀원 건만 표시':' · 내 담당 건만 표시'}`,newBtn('activities','활동 기록')+newBtn('opps','기회 등록','','btn'))+
  `<div class="kpis">${kpi('진행 리드',newLeads,'건')}${kpi('진행 파이프라인',fmt(pipe),'백만원')}${kpi('가중 예상매출',fmt(wt),'백만원')}${kpi(YEAR+'년 수주',fmt(wonAmt),'백만원')}${kpi('수주 GP율',pct(wonGp,wonAmt),'%')}${kpi('미회수 채권',fmt(arL),'백만원',over.length?'alert':'')}</div>
  <div class="grid2"><div class="sec funnel"><h2>단계별 파이프라인</h2>${st.map(s=>`<div class="row"><b>${esc(s.k)}</b><div class="bar"><i style="width:${s.amt/mx*100}%"></i><i class="w" style="width:${s.w/mx*100}%"></i></div><div class="val"><b>${fmt(s.amt)}</b> · ${s.n}건</div></div>`).join('')}<div class="legend"><span><i style="background:var(--ink)"></i>예상 매출</span><span><i style="background:var(--red)"></i>확도 반영 가중 매출</span></div></div>
  <div><div class="sec" style="margin-bottom:20px"><h2>30일 내 수주 예정</h2>${soon.length?`<ul class="list">${soon.map(o=>`<li data-edit="opps:${esc(o.id)}"><div><div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner)}</div></div><div class="r"><b class="num">${fmt(o.amount)}</b><br>${esc(o.closeDate)}</div></li>`).join('')}</ul>`:'<p class="empty">30일 안에 수주 예정인 기회가 없습니다.</p>'}</div>
@@ -406,8 +417,8 @@ function vLost(){
 }
 
 function vPL(){
- const key=F.plBy,labels={owner:'영업담당',customer:'고객사',partner:'매출처(파트너)',product:'솔루션/상품'};
- const g={};D.opps.filter(o=>o.stage!=='실주').forEach(o=>{(g[o[key]||(key==='partner'?'직판':'(미지정)')]??=[]).push(o)});
+ const key=F.plBy,labels={team:'팀',owner:'영업담당',customer:'고객사',partner:'매출처(파트너)',product:'솔루션/상품'};
+ const g={};D.opps.filter(o=>o.stage!=='실주').forEach(o=>{const v=key==='team'?teamName(teamOf(o.owner)):o[key];(g[v||(key==='partner'?'직판':'(미지정)')]??=[]).push(o)});
  const rows=Object.entries(g).map(([k,a])=>{const op=a.filter(isOpen),w=a.filter(o=>o.stage==='수주');return{k,n:op.length,pipe:sum(op,o=>num(o.amount)),wt:sum(op,o=>num(o.amount)*prob(o)/100),won:sum(w,o=>num(o.amount)),cost:sum(w,o=>num(o.cost)),gp:sum(w,gp)}}).sort((a,b)=>(b.won+b.wt)-(a.won+a.wt));
  const T=rows.reduce((t,r)=>{['n','pipe','wt','won','cost','gp'].forEach(f=>t[f]+=r[f]);return t},{n:0,pipe:0,wt:0,won:0,cost:0,gp:0});
  const cols=[{l:labels[key],f:r=>`<b>${esc(r.k)}</b>`},{l:'진행건수',n:1,f:r=>r.n},{l:'진행 매출',n:1,f:r=>fmt(r.pipe)},{l:'가중 매출',n:1,f:r=>fmt(r.wt)},{l:'수주 매출',n:1,f:r=>fmt(r.won)},{l:'수주 원가',n:1,f:r=>fmt(r.cost)},{l:'수주 GP',n:1,f:r=>fmt(r.gp)},{l:'GP율',n:1,f:r=>pct(r.gp,r.won)+'%'},{l:'전망(수주+가중)',n:1,f:r=>`<b>${fmt(r.won+r.wt)}</b>`}];
@@ -481,11 +492,33 @@ function vVendorSum(){
 }
 
 function vUsers(){
- const rows=Object.entries(REPS).map(([id,r])=>({id,name:r.name,role:ROLES[id]?.role||'영업대표',at:r.createdAt})).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'));
- return head('사용자 · 권한',`${esc(ORG)} 본부 / ${esc(ORG)} 팀. 각 영업대표가 처음 접속해 이름을 등록하면 이 목록에 나타납니다. 역할은 관리자(이 시스템의 소유자·편집자)만 바꿀 수 있습니다.`)+
- `<div class="kpis">${ROLES_L.map(r=>kpi(r,rows.filter(x=>x.role===r).length,'명')).join('')}${kpi('등록 인원',rows.length,'명')}</div>
- <div class="sec">${rows.length?`<div class="scroll"><table class="stack"><thead><tr><th>영업담당 이름</th><th>역할</th><th>볼 수 있는 범위</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr style="cursor:default"><td data-l="이름"><b>${esc(r.name)}</b>${r.id===ME.id?' <span class="chip ink">나</span>':''}</td><td data-l="역할">${ME.admin?`<select data-role="${esc(r.id)}">${ROLES_L.map(x=>`<option ${x===r.role?'selected':''}>${x}</option>`).join('')}</select>`:esc(r.role)}</td><td data-l="범위">${r.role==='영업대표'?'본인 담당 건':'팀 전체'}</td><td data-l="">${ME.admin&&r.id!==ME.id?`<button class="btn xs" data-unreg="${esc(r.id)}">목록에서 삭제</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">아직 등록한 사람이 없습니다. 링크를 공유받은 영업대표가 처음 접속하면 이름 등록 안내가 나옵니다.</p>'}</div>
- <p class="note">권한 안내: 영업대표는 본인이 담당(요청자·결재자 포함)인 리드·영업기회·활동·품의·채권만 봅니다. 팀장·본부장·관리자는 전체를 봅니다. 고객·협력업체 정보는 모두가 공유합니다. 이 범위는 화면에서 걸러 보여 주는 방식이라 엄격한 보안 통제는 아닙니다.</p>`;
+ const rows=users().sort((a,b)=>(teamName(a.team)||'~').localeCompare(teamName(b.team)||'~','ko')||ROLES_L.indexOf(b.role)-ROLES_L.indexOf(a.role)||a.name.localeCompare(b.name,'ko'));
+ const scope=u=>u.role==='사업부장'?esc(orgName())+' 전체':u.role==='팀장'?(u.team?esc(teamName(u.team))+' 팀원 전체':'<span style="color:var(--red)">팀 지정 필요</span>'):'본인 담당 건';
+ const noTeam=rows.filter(u=>u.role!=='사업부장'&&!u.team).length;
+ return head('사용자 · 권한',`각 영업대표가 처음 접속해 이름을 등록하면 이 목록에 나타납니다. 팀과 역할은 관리자만 지정합니다. 팀은 ‘조직 · 팀 설정’에서 추가·변경합니다.`,ME.admin?'<a class="btn" href="#org">조직 · 팀 설정</a>':'')+
+ `<div class="kpis">${ROLES_L.map(r=>kpi(r,rows.filter(x=>x.role===r).length,'명')).join('')}${kpi('등록 인원',rows.length,'명')}${kpi('팀 미지정',noTeam,'명',noTeam?'alert':'')}</div>
+ <div class="sec">${rows.length?`<div class="scroll"><table class="stack"><thead><tr><th>영업담당 이름</th><th>팀</th><th>역할</th><th>볼 수 있는 범위</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr style="cursor:default"><td data-l="이름"><b>${esc(r.name)}</b>${r.id===ME.id?' <span class="chip ink">나</span>':''}</td><td data-l="팀">${ME.admin?`<select data-uteam="${esc(r.id)}" aria-label="팀"><option value="">(팀 없음)</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}" ${t.id===r.team?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:esc(teamName(r.team)||'-')}</td><td data-l="역할">${ME.admin?`<select data-urole="${esc(r.id)}" aria-label="역할">${ROLES_L.map(x=>`<option ${x===r.role?'selected':''}>${x}</option>`).join('')}</select>`:esc(r.role)}</td><td data-l="범위">${scope(r)}</td><td data-l="">${ME.admin&&r.id!==ME.id?`<button class="btn xs" data-unreg="${esc(r.id)}">목록에서 삭제</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">아직 등록한 사람이 없습니다. 링크를 공유받은 사람이 처음 접속하면 이름 등록 안내가 나옵니다.</p>'}</div>
+ <p class="note">권한: 영업대표는 본인 담당(요청자·결재자 포함) 건만, 팀장은 같은 팀 팀원의 건 전체를, 사업부장과 관리자는 사업부 전체를 봅니다. 사업부장은 오른쪽 위에서 팀별로 좁혀 볼 수 있습니다. 고객·협력업체 정보는 모두가 공유합니다. 이 범위는 화면에서 걸러 보여 주는 방식이고, 팀·역할 지정은 관리자만 바꿀 수 있도록 저장소 규칙으로 막혀 있습니다.</p>`;
+}
+let ORGD=null;
+function vOrg(){
+ if(!ORGD)ORGD={name:orgName(),teams:ORGCFG.teams.map(t=>({...t}))};
+ const ro=!ME.admin,us=users();
+ return head('조직 · 팀 설정','사업부 이름과 팀을 설정합니다. 팀은 필요한 만큼 추가하고, 이름을 바꾸거나 삭제할 수 있습니다. 사람을 팀에 넣는 일은 ‘사용자 · 권한’에서 합니다.',ro?'':'<button class="btn w" data-org="add">+ 팀 추가</button><button class="btn pri w" data-org="save">저장</button>')+
+ (ro?'<div class="banner">관리자만 수정할 수 있습니다.</div>':'')+
+ `<div class="stg" style="margin-bottom:18px;max-width:420px"><label class="fld"><span>사업부 이름</span><input type="text" data-og="name" value="${esc(ORGD.name)}" ${ro?'disabled':''}></label></div>
+ <div class="scroll stg"><table><thead><tr><th>순서</th><th>팀 이름</th><th>팀장</th><th class="n">팀원 수</th><th></th></tr></thead><tbody>${ORGD.teams.map((t,i)=>{const m=us.filter(u=>u.team===t.id);const ld=m.filter(u=>u.role==='팀장');return `<tr style="cursor:default"><td>${i+1}</td><td><input type="text" data-og="t:${i}" value="${esc(t.name)}" ${ro?'disabled':''} aria-label="팀 이름"></td><td>${ld.length?ld.map(u=>esc(u.name)).join(', '):'<span class="s">미지정</span>'}</td><td class="n">${m.length}</td><td style="white-space:nowrap">${ro?'':`<button class="btn xs" data-org="up:${i}" aria-label="위로">↑</button> <button class="btn xs" data-org="down:${i}" aria-label="아래로">↓</button> <button class="btn xs" data-org="del:${i}" aria-label="삭제">✕</button>`}</td></tr>`}).join('')||'<tr><td colspan="5" class="empty">팀이 없습니다. 팀을 추가하세요.</td></tr>'}</tbody></table></div><span class="err" id="orgErr"></span>
+ <p class="note">팀원이 있는 팀은 삭제할 수 없습니다. 먼저 ‘사용자 · 권한’에서 팀원을 다른 팀으로 옮기세요. 사업부장은 팀에 속하지 않아도 됩니다.</p>`;
+}
+async function saveOrg(){
+ const err=$('#orgErr');err.textContent='';
+ const names=ORGD.teams.map(t=>t.name.trim());
+ if(!ORGD.name.trim())return err.textContent='사업부 이름을 입력하세요.';
+ if(names.some(n=>!n))return err.textContent='팀 이름을 비울 수 없습니다.';
+ if(new Set(names).size!==names.length)return err.textContent='팀 이름이 겹칩니다.';
+ const keep=new Set(ORGD.teams.map(t=>t.id));const gone=ORGCFG.teams.filter(t=>!keep.has(t.id)&&users().some(u=>u.team===t.id));
+ if(gone.length)return err.textContent=`‘${gone.map(t=>t.name).join(', ')}’에 팀원이 있어 삭제할 수 없습니다.`;
+ try{await db.doc('config/org').set({name:ORGD.name.trim(),teams:ORGD.teams.map(t=>({id:t.id,name:t.name.trim()})),updatedAt:Date.now()});ORGD=null;render();$('#net').textContent='조직 설정 저장됨'}catch(x){err.textContent='저장하지 못했습니다. 관리자 권한이 필요합니다.'}
 }
 function vStages(){
  if(!STG)STG=OPEN.map(s=>({k:s.k,p:s.p,req:[...(s.req||[])],orig:s.k}));
@@ -497,7 +530,7 @@ function vStages(){
  ${STAGES.slice(-2).map(s=>`<tr style="cursor:default;color:var(--mut)"><td>-</td><td><b>${esc(s.k)}</b> (고정)</td><td>${s.p}</td><td>${s.k==='수주'?'매출 합계, 예상 원가, 예상 수주일':'실주 사유 입력창'}</td><td class="n">${cnt(s.k)}</td><td></td></tr>`).join('')}</tbody></table></div><span class="err" id="stgErr"></span>`;
 }
 
-const VIEWS={home:vHome,lead:vLead,act:vAct,actrep:vActRep,oppboard:vOppBoard,opplist:vOppList,lost:vLost,cust:vCust,pl:vPL,plmonth:vPLMonth,apprall:()=>vAppr(''),ar:vAR,armonth:vARMonth,vendor:vVendor,vendorsum:vVendorSum,users:vUsers,stages:vStages};
+const VIEWS={home:vHome,lead:vLead,act:vAct,actrep:vActRep,oppboard:vOppBoard,opplist:vOppList,lost:vLost,cust:vCust,pl:vPL,plmonth:vPLMonth,apprall:()=>vAppr(''),ar:vAR,armonth:vARMonth,vendor:vVendor,vendorsum:vVendorSum,users:vUsers,stages:vStages,org:vOrg};
 Object.entries(KINDS).forEach(([id,k])=>VIEWS[id]=()=>vAppr(k));
 const route=()=>{const h=location.hash.slice(1);return VIEWS[h]?h:'home'};
 
@@ -512,7 +545,7 @@ function renderTabs(){
 }
 function render(){
  const r=route(),a=document.activeElement,aid=a&&a.id,pos=a&&a.selectionStart;
- if(r==='stages'&&a&&a.dataset&&a.dataset.st)return;
+ if((r==='stages'&&a&&a.dataset&&a.dataset.st)||(r==='org'&&a&&a.dataset&&a.dataset.og))return;
  let html='';try{html=VIEWS[r]()}catch(e){html=`<p class="err">화면을 그리는 중 오류가 발생했습니다: ${esc(e.message)}</p>`}
  const reg=db&&ME.id&&repsLoaded&&!ME.rep?`<div class="reg"><b>처음 오셨네요. 영업담당 이름을 등록해 주세요.</b><span class="s">기회·활동의 ‘영업담당’에 쓰이는 이름입니다. 같은 이름의 기록이 내 담당 건으로 보입니다.</span><input id="reg_name" list="dl_owner" placeholder="예: 홍길동" autocomplete="off"><button class="btn pri" data-reg="1">등록</button></div>`:'';
  $('#main').innerHTML=(db?'':`<div class="banner">데이터 저장소에 연결되지 않아 조회·저장이 되지 않습니다. claude.ai에서 로그인한 상태로 열어 주세요.</div>`)+reg+html+dl();
@@ -605,7 +638,7 @@ async function saveLost(e){
 /* 리드 전환 */
 function convertLead(id){
  const l=RAW.leads.find(x=>x.id===id);if(!l)return;
- openForm('opps',null,{name:[l.company,l.interest].filter(Boolean).join(' '),customer:l.company,owner:l.owner,product:l.interest,stage:OPEN[0].k,dept:ORG,note:l.note},`리드 ‘${esc(l.company)}’를 영업기회로 전환합니다. 저장하면 리드는 ‘전환’ 상태가 되고, 고객사가 없으면 함께 등록됩니다.`);
+ openForm('opps',null,{name:[l.company,l.interest].filter(Boolean).join(' '),customer:l.company,owner:l.owner,product:l.interest,stage:OPEN[0].k,dept:orgName(),note:l.note},`리드 ‘${esc(l.company)}’를 영업기회로 전환합니다. 저장하면 리드는 ‘전환’ 상태가 되고, 고객사가 없으면 함께 등록됩니다.`);
  M.onSaved=async oppId=>{
   const{id:_,...r}=l;await db.collection('leads').doc(l.id).set({...r,status:'전환',convertedOppId:oppId,convertedAt:TODAY,updatedAt:Date.now()});
   const opp=RAW.opps.find(x=>x.id===oppId),cname=opp?.customer||l.company;
@@ -615,7 +648,7 @@ function convertLead(id){
 
 /* ---------- 샘플 ---------- */
 function sampleSet(){
- const S=1,z=v=>v||null,o=(id,name,customer,stage,owner,product,sw,hw,svc,ma,cost,d,ext={})=>({id,name,customer,stage,dept:ORG,owner,product,amtSW:z(sw),amtHW:z(hw),amtSvc:z(svc),amtMA:z(ma),amount:sw+hw+svc+ma,cost:z(cost),closeDate:addDays(d),sample:S,...ext});
+ const S=1,z=v=>v||null,o=(id,name,customer,stage,owner,product,sw,hw,svc,ma,cost,d,ext={})=>({id,name,customer,stage,dept:orgName(),owner,product,amtSW:z(sw),amtHW:z(hw),amtSvc:z(svc),amtMA:z(ma),amount:sw+hw+svc+ma,cost:z(cost),closeDate:addDays(d),sample:S,...ext});
  return{
  leads:[['l1','미래병원','원무팀장','010-555-0111','전시회/세미나','AI 분석 솔루션','검증완료','이기회',-4],['l2','바른식품','IT기획 과장','010-555-0112','인바운드 문의','BI 대시보드','접촉중','박수주',-2],['l3','하늘에너지','DX추진 부장','010-555-0113','소개','빅데이터 플랫폼','신규','김영업',-1],['l4','온누리유통','전산실장','010-555-0114','콜드콜','클라우드 DW','폐기','박수주',-20]].map(([id,company,position,phone,source,interest,status,owner,d])=>({id:'smp-'+id,company,contact:'담당자',position,phone,source,interest,status,owner,date:addDays(d),sample:S})),
  customers:[['c1','한빛제조','매출처','제조','이기회','정과장','02-555-0101'],['c2','서해물류','매출처','물류','박수주','최차장','032-555-0102'],['c3','누리금융','End User','금융','김영업','한부장','02-555-0103'],['c4','도시교통공사','매출처','공공','김영업','오주무관','02-555-0104'],['c5','데이터웍스','파트너','IT서비스','박수주','윤대표','02-555-0105']].map(([id,name,kind,industry,owner,contact,phone])=>({id:'smp-'+id,name,kind,industry,owner,contact,phone,sample:S})),
@@ -651,14 +684,14 @@ async function saveStages(){
  const list=STG.map(s=>({k:s.k.trim(),p:Math.max(0,Math.min(100,num(s.p))),req:s.req}));
  try{await db.doc('config/stages').set({list,updatedAt:Date.now()});
   for(const s of STG)if(s.orig&&s.orig!==s.k.trim())for(const o of RAW.opps.filter(x=>x.stage===s.orig)){const{id,...r}=o;await db.collection('opps').doc(id).set({...r,stage:s.k.trim(),updatedAt:Date.now()})}
-  STG=null;$('#net').textContent='영업단계 저장됨'}catch(x){err.textContent='저장하지 못했습니다. 관리자 권한이 필요합니다.'}
+  STG=null;render();$('#net').textContent='영업단계 저장됨'}catch(x){err.textContent='저장하지 못했습니다. 관리자 권한이 필요합니다.'}
 }
 
 /* ---------- 이벤트 ---------- */
 document.addEventListener('click',async e=>{
  if(e.target.closest('#menuBtn')){document.body.classList.toggle('navopen');return}
  if(document.body.classList.contains('navopen')&&!e.target.closest('aside')){document.body.classList.remove('navopen');if(!e.target.closest('a'))return}
- const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-convert],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-stg],#delBtn');if(!t)return;
+ const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-convert],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-stg],[data-org],#delBtn');if(!t)return;
  if(t.dataset.closetab){const id=t.dataset.closetab,i=TABS.indexOf(id);TABS=TABS.filter(x=>x!==id);if(!TABS.length)TABS=['home'];saveTabs();if(route()===id){location.hash=TABS[Math.max(0,i-1)]||'home'}else{renderTree();renderTabs()}return}
  if(t.dataset.close!==undefined){if(e.target===t||t.tagName==='BUTTON')closeM();return}
  if(t.id==='delBtn'){if(!M.del){M.del=true;t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection(M.col).doc(M.id).delete();closeM()}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
@@ -669,6 +702,13 @@ document.addEventListener('click',async e=>{
  if(t.dataset.qdel){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const{id,...r}=o;const quotes=(o.quotes||[]).filter((_,i)=>i!==num(t.dataset.qdel));try{await db.collection('opps').doc(id).set({...r,quotes,updatedAt:Date.now()});$('#quotes').innerHTML=quotesHTML({quotes})}catch(x){}return}
  if(t.dataset.reg){const n=$('#reg_name').value.trim();if(!n){$('#reg_name').focus();return}try{await db.doc('reps/'+ME.id).set({name:n,createdAt:Date.now()})}catch(x){$('#net').textContent='이름을 등록하지 못했습니다'}return}
  if(t.dataset.unreg){try{await db.doc('reps/'+t.dataset.unreg).delete();await db.doc('roles/'+t.dataset.unreg).delete()}catch(x){$('#net').textContent='삭제하지 못했습니다'}return}
+ if(t.dataset.org){const[a,i]=t.dataset.org.split(':');const n=num(i);if(!ORGD)return;
+  if(a==='add')ORGD.teams.push({id:'t'+Date.now().toString(36),name:'새 팀'});
+  if(a==='del')ORGD.teams.splice(n,1);
+  if(a==='up'&&n>0)[ORGD.teams[n-1],ORGD.teams[n]]=[ORGD.teams[n],ORGD.teams[n-1]];
+  if(a==='down'&&n<ORGD.teams.length-1)[ORGD.teams[n+1],ORGD.teams[n]]=[ORGD.teams[n],ORGD.teams[n+1]];
+  if(a==='save'){await saveOrg();return}
+  render();return}
  if(t.dataset.stg){const[a,i]=t.dataset.stg.split(':');const n=num(i);
   if(a==='add')STG.push({k:'새 단계',p:50,req:[],orig:null});
   if(a==='del')STG.splice(n,1);
@@ -688,13 +728,16 @@ document.addEventListener('change',async e=>{
   if(st==='실주'){render();openLost(o.id);return}
   const miss=stageMissing(o,st);if(miss.length){render();openForm('opps',o.id);$('#f_stage').value=st;calc();$('#ferr').textContent=`‘${st}’ 단계로 옮기려면 ${miss.join(', ')}을(를) 입력하고 저장하세요.`;return}
   try{await setStage(o.id,st)}catch(x){$('#net').textContent='저장하지 못했습니다';render()}return}
- if(t.dataset.role){try{await db.doc('roles/'+t.dataset.role).set({role:t.value,updatedAt:Date.now()})}catch(x){$('#net').textContent='역할을 바꾸지 못했습니다 (관리자 권한 필요)'}return}
+ if(t.dataset.urole||t.dataset.uteam){const uid=t.dataset.urole||t.dataset.uteam,cur=ROLES[uid]||{};const b={role:normRole(cur.role),team:cur.team||'',updatedAt:Date.now()};if(t.dataset.urole)b.role=t.value;else b.team=t.value;try{await db.doc('roles/'+uid).set(b)}catch(x){$('#net').textContent='저장하지 못했습니다 (관리자 권한 필요)';render()}return}
+ if(t.id==='scopeSel'){F.scope=t.value;refreshMe();render();return}
+ if(t.dataset.og){ogEdit(t);return}
  if(t.dataset.st){stEdit(t);return}
  if(t.id==='f_oppQ'){loadOpp(true);return}
  if(t.dataset.f&&t.tagName==='SELECT'){F[t.dataset.f]=t.value;render()}
 });
+function ogEdit(t){const[a,i]=t.dataset.og.split(':');if(!ORGD)return;if(a==='name')ORGD.name=t.value;if(a==='t'&&ORGD.teams[num(i)])ORGD.teams[num(i)].name=t.value}
 function stEdit(t){const[a,i,k]=t.dataset.st.split(':');const s=STG[num(i)];if(!s)return;if(a==='k')s.k=t.value;if(a==='p')s.p=t.value;if(a==='r'){s.req=s.req.filter(x=>x!==k);if(t.checked)s.req.push(k)}}
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset.st){stEdit(t);return}if(t.id==='f_oppQ'){loadOpp(true);return}if(t.dataset.f&&t.tagName==='INPUT'){F[t.dataset.f]=t.value;render()}if(t.closest('#frm'))calc()});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.st){stEdit(t);return}if(t.dataset.og){ogEdit(t);return}if(t.id==='f_oppQ'){loadOpp(true);return}if(t.dataset.f&&t.tagName==='INPUT'){F[t.dataset.f]=t.value;render()}if(t.closest('#frm'))calc()});
 document.addEventListener('submit',e=>{if(e.target.id==='frm')save(e);if(e.target.id==='lostFrm')saveLost(e)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(M)closeM();document.body.classList.remove('navopen')}if(e.key==='Enter'&&e.target.id==='reg_name'){e.preventDefault();$('[data-reg]')?.click()}});
 addEventListener('hashchange',()=>{closeM();document.body.classList.remove('navopen');renderAll();scrollTo(0,0)});
@@ -707,7 +750,7 @@ async function init(){
  try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.admin=!!(await u.canEdit());ME.id=await u.id()}}catch(e){}
  refreshMe();
  if(!db){net.textContent='저장소 연결 불가';render();return}
- const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+3;
+ const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+4;
  const timer=setTimeout(()=>{if(done.size<need)net.textContent='데이터 연결이 지연되고 있습니다'},10000);
  const ok=k=>{done.add(k);if(done.size===need){clearTimeout(timer);net.textContent=canWrite?'실시간 공유 중':'보기 전용'}};
  const fail=()=>{clearTimeout(timer);net.textContent='데이터를 불러오지 못했습니다'};
@@ -715,6 +758,7 @@ async function init(){
  cols.forEach(c=>db.collection(c).onSnapshot(s=>{RAW[c]=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok(c);upd()},fail));
  db.collection('reps').onSnapshot(s=>{REPS={};s.docs.forEach(d=>REPS[d.id]=d.data());if(!s.metadata.fromCache){repsLoaded=true;ok('reps')}upd()},fail);
  db.collection('roles').onSnapshot(s=>{ROLES={};s.docs.forEach(d=>ROLES[d.id]=d.data());if(!s.metadata.fromCache)ok('roles');upd()},fail);
+ db.doc('config/org').onSnapshot(s=>{const d=s.exists?s.data():null;if(d&&Array.isArray(d.teams))ORGCFG={name:d.name||'AIDataPlatform',teams:d.teams};if(!s.metadata.fromCache)ok('org');if(route()!=='org')ORGD=null;upd()},fail);
  db.doc('config/stages').onSnapshot(s=>{setStages(s.exists?s.data().list:null);if(!s.metadata.fromCache)ok('config');if(!STG||route()!=='stages')STG=null;renderTree();upd()},fail);
 }
 init();
