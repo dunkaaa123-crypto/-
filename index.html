@@ -1,0 +1,425 @@
+<title>영업관리 시스템</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,700;112,800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: an internal sales tool used daily by account managers
+   IDEA a Swiss railway timetable: stages are stations, deals travel left to right
+   PICTURE the pipeline funnel drawn as horizontal bars, weighted part in signal red
+   COLOUR white ground, black ink, signal red accent, one grey
+   TYPE Archivo wide for numerals and titles + Noto Sans KR
+   LAYOUT top bar + tab strip; title row with action; content grids stack under 600px */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#0e0e0e);--ink:light-dark(#111,#f1f1f1);--mut:light-dark(#6b6b6b,#a3a3a3);--line:light-dark(#dedede,#2c2c2c);--surf:light-dark(#f4f4f4,#181818);--red:light-dark(#e4002b,#ff3b52);--redt:light-dark(#fde6ea,#3a1219);--ok:light-dark(#0a7d3b,#4fd18a);--okt:light-dark(#e3f4ea,#12301f);--warn:light-dark(#9a6400,#f0b444);--warnt:light-dark(#fff3d9,#33270d)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip;margin:0}
+.num,.big,h1{font-family:Archivo,"Noto Sans KR",sans-serif;font-stretch:112%}
+.pad{padding-left:max(4vw,16px,env(safe-area-inset-left,0px));padding-right:max(4vw,16px,env(safe-area-inset-right,0px))}
+header{border-top:6px solid var(--ink);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.top{display:flex;align-items:center;gap:16px;padding-block:12px 4px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.02em}
+.brand b{color:var(--red)}
+#net{font-size:13px;color:var(--mut);margin-left:auto}
+nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav a{padding:10px 12px;color:var(--mut);text-decoration:none;font-weight:700;white-space:nowrap;border-bottom:3px solid transparent}
+nav a.on{color:var(--ink);border-color:var(--red)}
+nav a:hover{color:var(--ink)}
+main{padding-block:24px 64px;max-width:1400px}
+.head{display:flex;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.05;letter-spacing:-.02em;margin:0;font-weight:800}
+.head p{margin:4px 0 0;color:var(--mut)}
+.head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+h2{font-size:18px;margin:0 0 10px;letter-spacing:-.01em}
+.btn{font:inherit;font-weight:700;border:1px solid var(--ink);background:var(--bg);color:var(--ink);padding:9px 14px;border-radius:4px;cursor:pointer;min-height:40px}
+.btn.pri{background:var(--ink);color:var(--bg)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:4px 10px;min-height:32px;font-size:13px}
+.btn:hover{opacity:.85}
+.btn:focus-visible,nav a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.ro .w{display:none!important}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(10.5em,1fr));gap:0;border-top:3px solid var(--ink);margin-bottom:28px}
+.kpi{padding:12px 16px 12px 0;border-bottom:1px solid var(--line)}
+.kpi span{display:block;font-size:13px;color:var(--mut)}
+.kpi .big{font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.kpi small{color:var(--mut);font-size:13px;margin-left:4px}
+.kpi.alert .big{color:var(--red)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:32px;margin-bottom:28px}
+.sec{border-top:1px solid var(--ink);padding-top:12px}
+.funnel .row{display:grid;grid-template-columns:7em minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.bar{height:26px;background:var(--surf);position:relative;border-radius:2px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--ink)}
+.bar i.w{background:var(--red)}
+.bar.thin{height:8px}
+.funnel .val{text-align:right;white-space:nowrap;font-size:14px}
+.funnel .val b{font-family:Archivo,sans-serif;font-stretch:112%}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--mut);margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px}
+.list{list-style:none;margin:0;padding:0}
+.list li{padding:9px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;justify-content:space-between;align-items:baseline;cursor:pointer}
+.list li:hover{background:var(--surf)}
+.list .t{font-weight:700}
+.list .s{color:var(--mut);font-size:13px}
+.list .r{white-space:nowrap;font-size:13px;text-align:right}
+.empty{color:var(--mut);padding:14px 0}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:700;color:var(--mut);font-size:13px;border-bottom:2px solid var(--ink);padding:8px 8px;white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surf)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700;background:var(--surf);white-space:nowrap}
+.chip.red{background:var(--redt);color:var(--red)}
+.chip.ok{background:var(--okt);color:var(--ok)}
+.chip.warn{background:var(--warnt);color:var(--warn)}
+.chip.ink{background:var(--ink);color:var(--bg)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filters select,.filters input{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);min-height:38px}
+.seg{display:inline-flex;border:1px solid var(--ink);border-radius:4px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;font-weight:700;border:0;background:var(--bg);color:var(--ink);padding:7px 14px;cursor:pointer;min-height:38px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{background:var(--surf);border-radius:4px;padding:10px;min-height:200px}
+.col h3{font-size:14px;margin:0 0 4px;display:flex;justify-content:space-between}
+.col .sum{font-size:13px;color:var(--mut);margin-bottom:10px;border-bottom:3px solid var(--ink);padding-bottom:6px}
+.col.won .sum{border-color:var(--red)}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px;margin-bottom:8px;cursor:pointer}
+.card:hover{border-color:var(--ink)}
+.card .t{font-weight:700;font-size:14px;line-height:1.35}
+.card .s{font-size:12px;color:var(--mut);margin:2px 0 6px}
+.card .f{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:13px}
+.card select{font:inherit;font-size:12px;padding:2px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink)}
+.rep{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:24px}
+.rep .who{display:flex;justify-content:space-between;align-items:baseline;border-top:3px solid var(--ink);padding-top:8px}
+.rep .who b{font-size:18px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.month .row{display:grid;grid-template-columns:5.5em minmax(0,1fr) 7em;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.month .bar i.w{background:color-mix(in srgb,var(--red) 45%,transparent)}
+.month .bar i.k{background:var(--red)}
+.month .cur{font-weight:800}
+.hero-empty{border-top:3px solid var(--ink);padding:40px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:center}
+.hero-empty h2{font-size:28px;line-height:1.2}
+.track{display:flex;align-items:center;gap:0;margin:8px 0}
+.track span{flex:1;text-align:center;font-size:13px;font-weight:700;padding-top:22px;position:relative}
+.track span::before{content:"";position:absolute;top:6px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--bg);border:3px solid var(--ink);z-index:1}
+.track span::after{content:"";position:absolute;top:11px;left:0;right:0;height:3px;background:var(--ink)}
+.track span:last-child::before{background:var(--red);border-color:var(--red)}
+.ov{position:fixed;inset:0;background:rgb(0 0 0/.45);z-index:20;display:flex;justify-content:center;align-items:flex-start;padding:max(4vh,16px) 12px;overflow-y:auto}
+.panel{background:var(--bg);color:var(--ink);width:100%;max-width:760px;border-top:6px solid var(--ink);border-radius:4px;padding:20px 22px 22px}
+.panel h2{font-size:22px;display:flex;justify-content:space-between;gap:12px}
+.form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 16px}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700}
+.fld.w2{grid-column:1/-1}
+.fld input,.fld select,.fld textarea{font:inherit;font-size:16px;font-weight:400;padding:8px 10px;border:1px solid color-mix(in srgb,var(--ink) 30%,transparent);border-radius:4px;background:var(--bg);color:var(--ink);width:100%}
+.fld .hint{font-weight:400;color:var(--mut)}
+.pfoot{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;align-items:center}
+.pfoot .sp{flex:1}
+.err{color:var(--red);font-size:14px;font-weight:700}
+.calc{grid-column:1/-1;background:var(--surf);padding:10px 12px;border-radius:4px;font-size:14px;display:flex;gap:20px;flex-wrap:wrap}
+.calc b{font-family:Archivo,sans-serif;font-stretch:112%}
+.linked{margin-top:18px;border-top:1px solid var(--ink);padding-top:10px}
+.note{font-size:13px;color:var(--mut);margin-top:24px}
+.banner{background:var(--warnt);color:var(--warn);padding:10px 14px;border-radius:4px;margin-bottom:16px;font-size:14px;font-weight:700}
+@media(max-width:900px){.grid2,.hero-empty{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.form{grid-template-columns:minmax(0,1fr)}table{font-size:13px}th,td{padding:6px 4px}.stack thead{display:none}.stack tr{display:grid;padding-block:8px;border-bottom:1px solid var(--line)}.stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:2px 4px;text-align:right}.stack td::before{content:attr(data-l);color:var(--mut);font-size:12px;text-align:left}.stack tfoot td{border:0}.funnel .row{grid-template-columns:5em minmax(0,1fr) auto}.month .row{grid-template-columns:4.5em minmax(0,1fr) 5.5em}}
+</style>
+
+<header>
+  <div class="top pad"><span class="brand">영업관리 <b>●</b> Sales Hub</span><span id="net">연결 중…</span></div>
+  <nav class="pad" id="nav">
+    <a href="#home">대시보드</a><a href="#act">영업활동</a><a href="#opp">영업기회</a><a href="#pl">Pipeline/손익</a><a href="#appr">수주·품의</a><a href="#cust">고객</a><a href="#ar">채권</a><a href="#vendor">사후관리</a>
+  </nav>
+</header>
+<main class="pad" id="main"></main>
+<div id="modal"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
+const fmt=n=>Math.round(num(n)).toLocaleString('ko-KR');
+const pct=(a,b)=>b?(Math.round(a/b*1000)/10):0;
+const pad2=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const NOW=new Date();const TODAY=ymd(NOW);const YEAR=String(NOW.getFullYear());const MONTH=TODAY.slice(0,7);
+const addDays=n=>{const d=new Date(NOW);d.setDate(d.getDate()+n);return ymd(d)};
+
+const STAGES=[{k:'잠재',p:10},{k:'기회',p:30},{k:'VRB',p:50},{k:'제안·협상',p:70},{k:'수주',p:100},{k:'실주',p:0}];
+const prob=o=>(o.prob!==null&&o.prob!==undefined&&o.prob!=='')?num(o.prob):(STAGES.find(s=>s.k===o.stage)?.p??0);
+const gp=o=>num(o.amount)-num(o.cost);
+const isOpen=o=>!['수주','실주'].includes(o.stage);
+
+const SCHEMA={
+ opps:{name:'영업기회',fields:[
+  {k:'name',l:'기회명',req:1,w:2},{k:'customer',l:'고객사',t:'cust',req:1},{k:'stage',l:'단계',t:'sel',opt:STAGES.map(s=>s.k),def:'잠재'},
+  {k:'dept',l:'본부',t:'list',src:'dept'},{k:'owner',l:'영업담당',t:'list',src:'owner'},{k:'product',l:'솔루션/상품',t:'list',src:'product'},
+  {k:'closeDate',l:'예상 수주일',t:'date'},{k:'amount',l:'예상 매출 (백만원)',t:'num'},{k:'cost',l:'예상 원가 (백만원)',t:'num'},
+  {k:'prob',l:'확도 %',t:'num',hint:'비우면 단계 기본값'},{k:'compete',l:'경쟁사'},{k:'lostReason',l:'실주 사유',w:2},{k:'note',l:'메모',t:'ta',w:2}]},
+ activities:{name:'영업활동',fields:[
+  {k:'date',l:'활동일',t:'date',req:1,def:()=>TODAY},{k:'type',l:'활동 유형',t:'sel',opt:['방문','미팅','전화','데모/PoC','제안발표','기타']},
+  {k:'customer',l:'고객사',t:'cust'},{k:'oppId',l:'관련 영업기회',t:'opp'},{k:'title',l:'제목',req:1,w:2},
+  {k:'content',l:'활동 내용',t:'ta',w:2},{k:'next',l:'다음 액션',w:2},{k:'owner',l:'영업담당',t:'list',src:'owner'}]},
+ approvals:{name:'품의',fields:[
+  {k:'kind',l:'품의 구분',t:'sel',opt:['원가산정','수주품의','실행/판매품의','검수조건부/Demo','계약','구매요청','판매직접비']},
+  {k:'status',l:'상태',t:'sel',opt:['작성중','결재요청','승인','반려'],def:'작성중'},{k:'oppId',l:'관련 영업기회',t:'opp',w:2},
+  {k:'title',l:'제목',req:1,w:2},{k:'amount',l:'금액 (백만원)',t:'num'},{k:'cost',l:'원가 (백만원)',t:'num'},
+  {k:'requester',l:'요청자',t:'list',src:'owner'},{k:'approver',l:'결재자'},{k:'memo',l:'품의 내용 / 결재 의견',t:'ta',w:2}]},
+ customers:{name:'고객',fields:[
+  {k:'name',l:'고객사명',req:1},{k:'kind',l:'구분',t:'sel',opt:['매출처','End User','파트너']},{k:'industry',l:'업종',t:'list',src:'industry'},
+  {k:'owner',l:'영업담당',t:'list',src:'owner'},{k:'contact',l:'고객 담당자'},{k:'phone',l:'연락처'},{k:'email',l:'이메일',w:2},{k:'note',l:'메모',t:'ta',w:2}]},
+ receivables:{name:'채권',fields:[
+  {k:'customer',l:'고객사',t:'cust',req:1},{k:'oppId',l:'관련 영업기회',t:'opp'},{k:'invoiceDate',l:'세금계산서 발행일',t:'date'},
+  {k:'dueDate',l:'회수 예정일',t:'date'},{k:'amount',l:'채권액 (백만원)',t:'num',req:1},{k:'collected',l:'회수액 (백만원)',t:'num'},
+  {k:'owner',l:'영업담당',t:'list',src:'owner'},{k:'plan',l:'회수 계획',t:'ta',w:2}]},
+ vendors:{name:'협력업체 평가',fields:[
+  {k:'name',l:'협력업체',req:1,t:'list',src:'vendor'},{k:'project',l:'프로젝트'},{k:'period',l:'수행 기간'},{k:'evaluator',l:'평가자',t:'list',src:'owner'},
+  {k:'q',l:'품질 (1~5)',t:'num'},{k:'d',l:'납기 (1~5)',t:'num'},{k:'c',l:'협업 (1~5)',t:'num'},{k:'t',l:'기술력 (1~5)',t:'num'},{k:'comment',l:'평가 의견',t:'ta',w:2}]}
+};
+const D={};Object.keys(SCHEMA).forEach(k=>D[k]=[]);
+const F={actSub:'list',oppSub:'board',plBy:'dept',rPeriod:'month'};
+let db=null,canWrite=true,M=null;
+
+const oppName=id=>{const o=D.opps.find(x=>x.id===id);return o?o.name:''};
+const vScore=v=>{const a=['q','d','c','t'].map(k=>num(v[k])).filter(x=>x>0);return a.length?a.reduce((s,x)=>s+x,0)/a.length:0};
+const arLeft=r=>Math.max(0,num(r.amount)-num(r.collected));
+const arState=r=>arLeft(r)<=0?'완료':(r.dueDate&&r.dueDate<TODAY?'연체':'정상');
+const uniq=a=>[...new Set(a.filter(Boolean))].sort();
+const opts=(a,v,all)=>`<option value="">${esc(all)}</option>`+a.map(x=>`<option ${x===v?'selected':''}>${esc(x)}</option>`).join('');
+const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
+const stageChip=s=>`<span class="chip ${s==='수주'?'red':s==='실주'?'':'ink'}">${esc(s||'-')}</span>`;
+const statChip=s=>`<span class="chip ${s==='승인'?'ok':s==='반려'?'red':s==='결재요청'?'warn':''}">${esc(s||'작성중')}</span>`;
+const newBtn=(col,label)=>`<button class="btn pri w" data-new="${col}">+ ${esc(label||SCHEMA[col].name+' 등록')}</button>`;
+const head=(t,p,acts='')=>`<div class="head"><div><h1>${esc(t)}</h1>${p?`<p>${p}</p>`:''}</div><div class="acts">${acts}</div></div>`;
+const kpi=(l,v,u='',cls='')=>`<div class="kpi ${cls}"><span>${esc(l)}</span><b class="big">${v}</b><small>${esc(u)}</small></div>`;
+const table=(cols,rows,col,foot)=>rows.length?`<div class="scroll"><table class="stack"><thead><tr>${cols.map(c=>`<th class="${c.n?'n':''}">${esc(c.l)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr data-edit="${col}:${esc(r.id)}">${cols.map(c=>`<td class="${c.n?'n':''}" data-l="${esc(c.l)}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}</tr>`).join('')}</tbody>${foot||''}</table></div>`:`<p class="empty">조건에 맞는 데이터가 없습니다.</p>`;
+
+function dl(){
+ const L={customer:uniq([...D.customers.map(c=>c.name),...D.opps.map(o=>o.customer)]),
+  owner:uniq([...D.opps.map(o=>o.owner),...D.activities.map(a=>a.owner),...D.customers.map(c=>c.owner),...D.approvals.map(a=>a.requester)]),
+  dept:uniq(D.opps.map(o=>o.dept)),product:uniq(D.opps.map(o=>o.product)),industry:uniq(D.customers.map(c=>c.industry)),vendor:uniq(D.vendors.map(v=>v.name))};
+ return Object.entries(L).map(([k,a])=>`<datalist id="dl_${k}">${a.map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`).join('');
+}
+
+/* ---------- views ---------- */
+function vHome(){
+ const total=Object.values(D).reduce((s,a)=>s+a.length,0);
+ if(!total) return head('대시보드','영업활동부터 수주·채권까지 한 곳에서 관리합니다.')+`<div class="hero-empty"><div><h2>아직 등록된 데이터가 없습니다</h2><p>영업기회를 하나 등록하면 파이프라인과 손익이 자동으로 계산됩니다. 먼저 둘러보려면 샘플 데이터를 넣어 보세요. 샘플은 언제든 한 번에 지울 수 있습니다.</p><div class="acts" style="display:flex;gap:8px;flex-wrap:wrap">${newBtn('opps','첫 영업기회 등록')}<button class="btn w" data-sample="add">샘플 데이터로 둘러보기</button></div></div><div><div class="track">${STAGES.slice(0,5).map(s=>`<span>${esc(s.k)}</span>`).join('')}</div><p class="note">잠재 → 기회 → VRB(사업 리스크 검토) → 제안·협상 → 수주 순서로 영업기회가 진행됩니다.</p></div></div>`;
+ const open=D.opps.filter(isOpen),won=D.opps.filter(o=>o.stage==='수주'&&String(o.closeDate||'').startsWith(YEAR));
+ const pipe=sum(open,o=>num(o.amount)),wt=sum(open,o=>num(o.amount)*prob(o)/100),wonAmt=sum(won,o=>num(o.amount)),wonGp=sum(won,gp);
+ const arL=sum(D.receivables,arLeft),over=D.receivables.filter(r=>arState(r)==='연체');
+ const actM=D.activities.filter(a=>String(a.date||'').startsWith(MONTH)).length;
+ const st=STAGES.filter(s=>s.k!=='실주').map(s=>{const a=D.opps.filter(o=>o.stage===s.k);return{k:s.k,n:a.length,amt:sum(a,o=>num(o.amount)),w:sum(a,o=>num(o.amount)*prob(o)/100)}});
+ const mx=Math.max(1,...st.map(s=>s.amt));
+ const soon=open.filter(o=>o.closeDate&&o.closeDate<=addDays(30)).sort((a,b)=>a.closeDate<b.closeDate?-1:1).slice(0,6);
+ const wait=D.approvals.filter(a=>a.status==='결재요청').slice(0,6);
+ const recent=[...D.activities].sort((a,b)=>(b.date||'')>(a.date||'')?1:-1).slice(0,8);
+ const sample=Object.values(D).some(a=>a.some(x=>x.sample));
+ return head('대시보드',`${esc(TODAY)} 기준 · 금액 단위 백만원`,newBtn('activities','활동 기록')+newBtn('opps','기회 등록').replace('btn pri','btn'))+
+ `<div class="kpis">${kpi('진행 파이프라인',fmt(pipe),'백만원')}${kpi('가중 예상매출',fmt(wt),'백만원')}${kpi(YEAR+'년 수주',fmt(wonAmt),'백만원')}${kpi('수주 GP율',pct(wonGp,wonAmt),'%')}${kpi('미회수 채권',fmt(arL),'백만원',over.length?'alert':'')}${kpi('이번 달 영업활동',actM,'건')}</div>
+ <div class="grid2"><div class="sec funnel"><h2>단계별 파이프라인</h2>${st.map(s=>`<div class="row"><b>${esc(s.k)}</b><div class="bar"><i style="width:${s.amt/mx*100}%"></i><i class="w" style="width:${s.w/mx*100}%"></i></div><div class="val"><b>${fmt(s.amt)}</b> · ${s.n}건</div></div>`).join('')}<div class="legend"><span><i style="background:var(--ink)"></i>예상 매출</span><span><i style="background:var(--red)"></i>확도 반영 가중 매출</span></div></div>
+ <div><div class="sec" style="margin-bottom:20px"><h2>30일 내 수주 예정</h2>${soon.length?`<ul class="list">${soon.map(o=>`<li data-edit="opps:${esc(o.id)}"><div><div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner)}</div></div><div class="r"><b class="num">${fmt(o.amount)}</b><br>${esc(o.closeDate)}</div></li>`).join('')}</ul>`:'<p class="empty">30일 안에 수주 예정인 기회가 없습니다.</p>'}</div>
+ <div class="sec"><h2>결재 대기 품의 <span class="chip warn">${D.approvals.filter(a=>a.status==='결재요청').length}</span></h2>${wait.length?`<ul class="list">${wait.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)} · ${esc(a.requester)}</div></div><div class="r num">${fmt(a.amount)}</div></li>`).join('')}</ul>`:'<p class="empty">대기 중인 품의가 없습니다.</p>'}</div></div></div>
+ <div class="sec"><h2>최근 영업활동</h2>${actTable(recent)}</div>
+ ${sample?`<p class="note">샘플 데이터가 들어 있습니다. <button class="btn sm w" data-sample="del">샘플 데이터 모두 삭제</button></p>`:''}`;
+}
+const actTable=rows=>table([{l:'일자',k:'date'},{l:'유형',f:r=>`<span class="chip">${esc(r.type)}</span>`},{l:'고객사',k:'customer'},{l:'제목',f:r=>`<b>${esc(r.title)}</b>`},{l:'영업기회',f:r=>esc(oppName(r.oppId))},{l:'다음 액션',k:'next'},{l:'담당',k:'owner'}],rows,'activities');
+
+function vAct(){
+ const owners=uniq(D.activities.map(a=>a.owner));
+ const seg=`<div class="seg"><button data-set="actSub=list" class="${F.actSub==='list'?'on':''}">활동 목록</button><button data-set="actSub=report" class="${F.actSub==='report'?'on':''}">Sales Activity Report</button></div>`;
+ let rows=D.activities.filter(a=>(!F.aOwner||a.owner===F.aOwner)&&(!F.aType||a.type===F.aType));
+ if(F.actSub==='list'){
+  if(F.aQ){const q=F.aQ.toLowerCase();rows=rows.filter(a=>[a.title,a.customer,a.content].join(' ').toLowerCase().includes(q))}
+  rows.sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+  return head('영업활동','고객 접점 활동을 기록하고 영업기회와 연결합니다.',newBtn('activities','활동 기록'))+`<div class="filters">${seg}<select data-f="aOwner">${opts(owners,F.aOwner,'전체 담당')}</select><select data-f="aType">${opts(SCHEMA.activities.fields[1].opt,F.aType,'전체 유형')}</select><input id="aQ" data-f="aQ" placeholder="제목·고객·내용 검색" value="${esc(F.aQ||'')}"></div>`+actTable(rows);
+ }
+ const p=F.rPeriod,mon=new Date(NOW);mon.setDate(NOW.getDate()-((NOW.getDay()+6)%7));const wk=ymd(mon);
+ const lm=new Date(NOW.getFullYear(),NOW.getMonth()-1,1);const LM=ymd(lm).slice(0,7);
+ const inP=d=>{d=String(d||'');return p==='week'?d>=wk&&d<=TODAY:p==='month'?d.startsWith(MONTH):p==='last'?d.startsWith(LM):true};
+ rows=rows.filter(a=>inP(a.date)).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1);
+ const by={};rows.forEach(a=>{(by[a.owner||'(미지정)']??=[]).push(a)});
+ const types=SCHEMA.activities.fields[1].opt;
+ return head('Sales Activity Report','담당자별 활동 실적과 다음 액션을 한눈에 봅니다.')+`<div class="filters">${seg}<select data-f="rPeriod">${[['week','이번 주'],['month','이번 달'],['last','지난 달'],['all','전체']].map(([k,l])=>`<option value="${k}" ${p===k?'selected':''}>${l}</option>`).join('')}</select><select data-f="aOwner">${opts(owners,F.aOwner,'전체 담당')}</select></div>
+ <div class="kpis">${kpi('활동 합계',rows.length,'건')}${types.slice(0,5).map(t=>kpi(t,rows.filter(a=>a.type===t).length,'건')).join('')}</div>
+ ${Object.keys(by).length?`<div class="rep">${Object.entries(by).sort((a,b)=>b[1].length-a[1].length).map(([o,a])=>`<div><div class="who"><b>${esc(o)}</b><span class="num">${a.length}건</span></div><div class="chips">${types.map(t=>{const n=a.filter(x=>x.type===t).length;return n?`<span class="chip">${esc(t)} ${n}</span>`:''}).join('')}</div><ul class="list">${a.map(x=>`<li data-edit="activities:${esc(x.id)}"><div><div class="t">${esc(x.title)}</div><div class="s">${esc(x.customer)}${x.next?' · 다음: '+esc(x.next):''}</div></div><div class="r">${esc(x.date)}</div></li>`).join('')}</ul></div>`).join('')}</div>`:'<p class="empty">선택한 기간에 활동이 없습니다.</p>'}`;
+}
+
+function vOpp(){
+ const owners=uniq(D.opps.map(o=>o.owner)),depts=uniq(D.opps.map(o=>o.dept));
+ let rows=D.opps.filter(o=>(!F.oOwner||o.owner===F.oOwner)&&(!F.oDept||o.dept===F.oDept));
+ if(F.oQ){const q=F.oQ.toLowerCase();rows=rows.filter(o=>[o.name,o.customer,o.product].join(' ').toLowerCase().includes(q))}
+ const seg=`<div class="seg"><button data-set="oppSub=board" class="${F.oppSub==='board'?'on':''}">단계 보드</button><button data-set="oppSub=list" class="${F.oppSub==='list'?'on':''}">목록</button></div>`;
+ const flt=`<div class="filters">${seg}<select data-f="oDept">${opts(depts,F.oDept,'전체 본부')}</select><select data-f="oOwner">${opts(owners,F.oOwner,'전체 담당')}</select><input id="oQ" data-f="oQ" placeholder="기회명·고객·상품 검색" value="${esc(F.oQ||'')}"></div>`;
+ const h=head('영업기회','잠재기회부터 수주·실주까지 단계별로 관리합니다. 카드의 단계를 바꾸면 바로 저장됩니다.',newBtn('opps','기회 등록'));
+ if(F.oppSub==='board') return h+flt+`<div class="board">${STAGES.map(s=>{const a=rows.filter(o=>o.stage===s.k).sort((x,y)=>(x.closeDate||'9')>(y.closeDate||'9')?1:-1);return `<div class="col ${s.k==='수주'?'won':''}"><h3><span>${esc(s.k)}</span><span>${a.length}</span></h3><div class="sum">${fmt(sum(a,o=>num(o.amount)))} 백만원 · 확도 ${s.p}%</div>${a.map(o=>`<div class="card" data-edit="opps:${esc(o.id)}"><div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner||'-')}</div><div class="f"><b class="num">${fmt(o.amount)}</b><span class="s" style="margin:0">${esc(o.closeDate||'')}</span></div><div class="f w" style="margin-top:6px"><select data-stage="${esc(o.id)}" aria-label="단계 변경">${STAGES.map(x=>`<option ${x.k===o.stage?'selected':''}>${esc(x.k)}</option>`).join('')}</select><span class="s" style="margin:0">GP ${pct(gp(o),num(o.amount))}%</span></div></div>`).join('')||'<p class="empty" style="font-size:13px">없음</p>'}</div>`}).join('')}</div>`;
+ rows.sort((a,b)=>STAGES.findIndex(s=>s.k===a.stage)-STAGES.findIndex(s=>s.k===b.stage)||((a.closeDate||'')>(b.closeDate||'')?1:-1));
+ return h+flt+table([{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',k:'customer'},{l:'단계',f:r=>stageChip(r.stage)},{l:'예상매출',n:1,f:r=>fmt(r.amount)},{l:'원가',n:1,f:r=>fmt(r.cost)},{l:'GP율',n:1,f:r=>pct(gp(r),num(r.amount))+'%'},{l:'확도',n:1,f:r=>prob(r)+'%'},{l:'가중매출',n:1,f:r=>fmt(num(r.amount)*prob(r)/100)},{l:'수주예정',k:'closeDate'},{l:'본부',k:'dept'},{l:'담당',k:'owner'}],rows,'opps');
+}
+
+function vPL(){
+ const key=F.plBy,labels={dept:'본부',owner:'영업담당',customer:'고객사',product:'솔루션/상품'};
+ const g={};D.opps.filter(o=>o.stage!=='실주').forEach(o=>{(g[o[key]||'(미지정)']??=[]).push(o)});
+ const rows=Object.entries(g).map(([k,a])=>{const op=a.filter(isOpen),w=a.filter(o=>o.stage==='수주');return{id:k,k,n:op.length,pipe:sum(op,o=>num(o.amount)),wt:sum(op,o=>num(o.amount)*prob(o)/100),won:sum(w,o=>num(o.amount)),cost:sum(w,o=>num(o.cost)),gp:sum(w,gp)}}).sort((a,b)=>(b.won+b.wt)-(a.won+a.wt));
+ const T=rows.reduce((t,r)=>{['n','pipe','wt','won','cost','gp'].forEach(f=>t[f]+=r[f]);return t},{n:0,pipe:0,wt:0,won:0,cost:0,gp:0});
+ const cols=[{l:labels[key],f:r=>`<b>${esc(r.k)}</b>`},{l:'진행건수',n:1,f:r=>r.n},{l:'진행 매출',n:1,f:r=>fmt(r.pipe)},{l:'가중 매출',n:1,f:r=>fmt(r.wt)},{l:'수주 매출',n:1,f:r=>fmt(r.won)},{l:'수주 원가',n:1,f:r=>fmt(r.cost)},{l:'수주 GP',n:1,f:r=>fmt(r.gp)},{l:'GP율',n:1,f:r=>pct(r.gp,r.won)+'%'},{l:'전망(수주+가중)',n:1,f:r=>`<b>${fmt(r.won+r.wt)}</b>`}];
+ const foot=`<tfoot><tr><td data-l="">합계</td><td class="n" data-l="진행건수">${T.n}</td><td class="n" data-l="진행 매출">${fmt(T.pipe)}</td><td class="n" data-l="가중 매출">${fmt(T.wt)}</td><td class="n" data-l="수주 매출">${fmt(T.won)}</td><td class="n" data-l="수주 원가">${fmt(T.cost)}</td><td class="n" data-l="수주 GP">${fmt(T.gp)}</td><td class="n" data-l="GP율">${pct(T.gp,T.won)}%</td><td class="n" data-l="전망">${fmt(T.won+T.wt)}</td></tr></tfoot>`;
+ const ms=[];for(let i=-2;i<=6;i++){const d=new Date(NOW.getFullYear(),NOW.getMonth()+i,1);ms.push(ymd(d).slice(0,7))}
+ const md=ms.map(m=>{const a=D.opps.filter(o=>String(o.closeDate||'').startsWith(m));return{m,won:sum(a.filter(o=>o.stage==='수주'),o=>num(o.amount)),wt:sum(a.filter(isOpen),o=>num(o.amount)*prob(o)/100)}});
+ const mx=Math.max(1,...md.map(x=>x.won+x.wt));
+ return head('Pipeline / 손익 전망','수주 확정분과 확도를 반영한 가중 매출로 매출·GP를 전망합니다. 실주는 제외합니다.')+
+ `<div class="kpis">${kpi('수주 매출',fmt(T.won),'백만원')}${kpi('수주 GP',fmt(T.gp),'백만원')}${kpi('GP율',pct(T.gp,T.won),'%')}${kpi('가중 매출',fmt(T.wt),'백만원')}${kpi('매출 전망',fmt(T.won+T.wt),'백만원')}</div>
+ <div class="filters"><span>집계 기준</span><div class="seg">${Object.entries(labels).map(([k,l])=>`<button data-set="plBy=${k}" class="${key===k?'on':''}">${l}</button>`).join('')}</div></div>
+ <div class="sec" style="margin-bottom:28px">${rows.length?`<div class="scroll"><table class="stack"><thead><tr>${cols.map(c=>`<th class="${c.n?'n':''}">${esc(c.l)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr data-set="oDept=${key==='dept'?esc(r.k):''}" style="cursor:default">${cols.map(c=>`<td class="${c.n?'n':''}" data-l="${esc(c.l)}">${c.f(r)}</td>`).join('')}</tr>`).join('')}</tbody>${foot}</table></div>`:'<p class="empty">영업기회가 없습니다.</p>'}</div>
+ <div class="sec month"><h2>월별 매출 전망 (예상 수주일 기준)</h2>${md.map(x=>`<div class="row ${x.m===MONTH?'cur':''}"><span>${esc(x.m)}</span><div class="bar"><i class="k" style="width:${x.won/mx*100}%"></i><i class="w" style="left:${x.won/mx*100}%;width:${x.wt/mx*100}%"></i></div><span class="n num" style="text-align:right">${fmt(x.won+x.wt)}</span></div>`).join('')}<div class="legend"><span><i style="background:var(--red)"></i>수주 확정</span><span><i style="background:color-mix(in srgb,var(--red) 45%,transparent)"></i>가중 예상</span></div></div>`;
+}
+
+function vAppr(){
+ const kinds=SCHEMA.approvals.fields[0].opt,sts=['작성중','결재요청','승인','반려'];
+ const rows=D.approvals.filter(a=>(!F.pKind||a.kind===F.pKind)&&(!F.pSt||(a.status||'작성중')===F.pSt)).sort((a,b)=>num(b.createdAt)-num(a.createdAt));
+ const flow=a=>{const s=a.status||'작성중';if(!canWrite)return '';if(s==='작성중')return `<button class="btn sm" data-flow="${esc(a.id)}:결재요청">결재요청</button>`;if(s==='결재요청')return `<button class="btn sm red" data-flow="${esc(a.id)}:승인">승인</button> <button class="btn sm" data-flow="${esc(a.id)}:반려">반려</button>`;if(s==='반려')return `<button class="btn sm" data-flow="${esc(a.id)}:작성중">재작성</button>`;return `<span class="s">${esc(a.decidedAt||'')}</span>`};
+ return head('수주 · 품의','원가산정, 수주품의, 실행/판매품의, 계약, 구매요청을 결재 흐름으로 관리합니다. 수주품의가 승인되면 연결된 영업기회가 수주로 바뀝니다.',newBtn('approvals','품의 작성'))+
+ `<div class="kpis">${sts.map(s=>kpi(s,D.approvals.filter(a=>(a.status||'작성중')===s).length,'건',s==='결재요청'&&D.approvals.some(a=>a.status==='결재요청')?'alert':'')).join('')}${kpi('승인 금액',fmt(sum(D.approvals.filter(a=>a.status==='승인'),a=>num(a.amount))),'백만원')}</div>
+ <div class="filters"><select data-f="pKind">${opts(kinds,F.pKind,'전체 구분')}</select><select data-f="pSt">${opts(sts,F.pSt,'전체 상태')}</select></div>`+
+ table([{l:'구분',f:r=>`<span class="chip">${esc(r.kind)}</span>`},{l:'제목',f:r=>`<b>${esc(r.title)}</b>`},{l:'영업기회',f:r=>esc(oppName(r.oppId))},{l:'금액',n:1,f:r=>fmt(r.amount)},{l:'GP율',n:1,f:r=>num(r.cost)?pct(num(r.amount)-num(r.cost),num(r.amount))+'%':'-'},{l:'요청자',k:'requester'},{l:'결재자',k:'approver'},{l:'상태',f:r=>statChip(r.status)},{l:'처리',f:flow}],rows,'approvals');
+}
+
+function vCust(){
+ let rows=D.customers.filter(c=>!F.cKind||c.kind===F.cKind);
+ if(F.cQ){const q=F.cQ.toLowerCase();rows=rows.filter(c=>[c.name,c.industry,c.contact,c.owner].join(' ').toLowerCase().includes(q))}
+ rows.sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'));
+ const oc=n=>D.opps.filter(o=>o.customer===n);
+ return head('고객 · 매출처','매출처, End User, 파트너사와 고객 담당자 정보를 관리합니다.',newBtn('customers','고객 등록'))+
+ `<div class="filters"><select data-f="cKind">${opts(['매출처','End User','파트너'],F.cKind,'전체 구분')}</select><input id="cQ" data-f="cQ" placeholder="고객사·업종·담당자 검색" value="${esc(F.cQ||'')}"></div>`+
+ table([{l:'고객사',f:r=>`<b>${esc(r.name)}</b>`},{l:'구분',f:r=>`<span class="chip">${esc(r.kind)}</span>`},{l:'업종',k:'industry'},{l:'고객 담당자',k:'contact'},{l:'연락처',k:'phone'},{l:'영업담당',k:'owner'},{l:'진행 기회',n:1,f:r=>oc(r.name).filter(isOpen).length},{l:'누적 수주',n:1,f:r=>fmt(sum(oc(r.name).filter(o=>o.stage==='수주'),o=>num(o.amount)))}],rows,'customers');
+}
+
+function vAR(){
+ const rows=[...D.receivables].sort((a,b)=>{const o={연체:0,정상:1,완료:2};return o[arState(a)]-o[arState(b)]||((a.dueDate||'')>(b.dueDate||'')?1:-1)});
+ const tot=sum(rows,r=>num(r.amount)),col=sum(rows,r=>num(r.collected)),left=tot-col,over=rows.filter(r=>arState(r)==='연체');
+ const g={};rows.filter(r=>arLeft(r)>0).forEach(r=>{const m=r.dueDate?String(r.dueDate).slice(0,7):'미정';g[m]=(g[m]||0)+arLeft(r)});
+ const gm=Object.entries(g).sort((a,b)=>a[0]>b[0]?1:-1),mx=Math.max(1,...gm.map(x=>x[1]));
+ return head('채권 · 회수 관리','세금계산서 발행 이후 회수 계획과 실적을 관리합니다. 회수 예정일이 지난 미회수 채권은 연체로 표시됩니다.',newBtn('receivables','채권 등록'))+
+ `<div class="kpis">${kpi('총 채권',fmt(tot),'백만원')}${kpi('회수',fmt(col),'백만원')}${kpi('미회수',fmt(left),'백만원')}${kpi('회수율',pct(col,tot),'%')}${kpi('연체',fmt(sum(over,arLeft)),'백만원 · '+over.length+'건',over.length?'alert':'')}</div>
+ <div class="grid2"><div class="sec">`+table([{l:'고객사',f:r=>`<b>${esc(r.customer)}</b>`},{l:'영업기회',f:r=>esc(oppName(r.oppId))},{l:'발행일',k:'invoiceDate'},{l:'채권액',n:1,f:r=>fmt(r.amount)},{l:'미회수',n:1,f:r=>fmt(arLeft(r))},{l:'회수율',f:r=>`<div class="bar thin" style="width:70px;display:inline-block;vertical-align:middle"><i style="width:${Math.min(100,pct(num(r.collected),num(r.amount)))}%"></i></div> ${pct(num(r.collected),num(r.amount))}%`},{l:'회수예정',k:'dueDate'},{l:'상태',f:r=>{const s=arState(r);return `<span class="chip ${s==='연체'?'red':s==='완료'?'ok':''}">${s}</span>`}},{l:'담당',k:'owner'}],rows,'receivables')+
+ `</div><div class="sec month"><h2>월별 회수 계획 (미회수 기준)</h2>${gm.length?gm.map(([m,v])=>`<div class="row ${m<MONTH?'cur':''}"><span>${esc(m)}</span><div class="bar"><i class="${m<MONTH?'k':''}" style="width:${v/mx*100}%"></i></div><span class="num" style="text-align:right">${fmt(v)}</span></div>`).join('')+'<div class="legend"><span><i style="background:var(--red)"></i>지난 달 이전 (연체)</span></div>':'<p class="empty">미회수 채권이 없습니다.</p>'}</div></div>`;
+}
+
+function vVendor(){
+ const rows=[...D.vendors].sort((a,b)=>vScore(b)-vScore(a));
+ const g={};rows.forEach(v=>{(g[v.name]??=[]).push(v)});
+ const sumRows=Object.entries(g).map(([n,a])=>({n,c:a.length,s:sum(a,vScore)/a.length})).sort((a,b)=>b.s-a.s);
+ const sc=v=>v?`<div class="bar thin" style="width:60px;display:inline-block;vertical-align:middle"><i style="width:${v/5*100}%;${v<3?'background:var(--red)':''}"></i></div> <b class="num">${v.toFixed(1)}</b>`:'-';
+ return head('사후관리 · 협력업체 평가','PJT 완료 후 외주·협력업체를 품질, 납기, 협업, 기술력 4개 항목(5점 만점)으로 평가합니다. 3점 미만은 빨간색입니다.',newBtn('vendors','평가 등록'))+
+ `<div class="grid2"><div class="sec"><h2>평가 내역</h2>`+table([{l:'협력업체',f:r=>`<b>${esc(r.name)}</b>`},{l:'프로젝트',k:'project'},{l:'기간',k:'period'},{l:'품질',n:1,f:r=>esc(r.q??'-')},{l:'납기',n:1,f:r=>esc(r.d??'-')},{l:'협업',n:1,f:r=>esc(r.c??'-')},{l:'기술',n:1,f:r=>esc(r.t??'-')},{l:'종합',f:r=>sc(vScore(r))},{l:'평가자',k:'evaluator'}],rows,'vendors')+
+ `</div><div class="sec"><h2>업체별 종합평가 현황</h2>${sumRows.length?`<ul class="list">${sumRows.map(r=>`<li style="cursor:default"><div><div class="t">${esc(r.n)}</div><div class="s">평가 ${r.c}건</div></div><div class="r">${sc(r.s)}</div></li>`).join('')}</ul>`:'<p class="empty">평가 내역이 없습니다.</p>'}</div></div>`;
+}
+
+const VIEWS={home:vHome,act:vAct,opp:vOpp,pl:vPL,appr:vAppr,cust:vCust,ar:vAR,vendor:vVendor};
+const route=()=>{const h=location.hash.slice(1);return VIEWS[h]?h:'home'};
+function render(){
+ const r=route(),a=document.activeElement,aid=a&&a.id,pos=a&&a.selectionStart;
+ document.querySelectorAll('#nav a').forEach(x=>x.classList.toggle('on',x.getAttribute('href')==='#'+r));
+ let html='';try{html=VIEWS[r]()}catch(e){html=`<p class="err">화면을 그리는 중 오류가 발생했습니다: ${esc(e.message)}</p>`}
+ $('#main').innerHTML=(db?'':`<div class="banner">데이터 저장소에 연결되지 않아 조회·저장이 되지 않습니다. claude.ai에서 로그인한 상태로 열어 주세요.</div>`)+html+dl();
+ if(aid){const el=document.getElementById(aid);if(el&&!el.closest('#modal')){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
+}
+
+/* ---------- form ---------- */
+function field(f,v){
+ const id='f_'+f.k;let inp;
+ if(v===undefined||v===null)v=typeof f.def==='function'?f.def():(f.def??'');
+ if(f.t==='sel')inp=`<select id="${id}">${f.opt.map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+ else if(f.t==='ta')inp=`<textarea id="${id}" rows="3">${esc(v)}</textarea>`;
+ else if(f.t==='opp')inp=`<select id="${id}"><option value="">(없음)</option>${[...D.opps].sort((a,b)=>String(a.customer).localeCompare(String(b.customer),'ko')).map(o=>`<option value="${esc(o.id)}" ${o.id===v?'selected':''}>${esc(o.customer)} · ${esc(o.name)}</option>`).join('')}</select>`;
+ else{const t=f.t==='num'?'number" step="any" inputmode="decimal':f.t==='date'?'date':'text';const l=f.t==='cust'?'dl_customer':f.t==='list'?'dl_'+f.src:'';inp=`<input id="${id}" type="${t}" value="${esc(v)}" ${l?`list="${l}"`:''} autocomplete="off">`}
+ return `<label class="fld ${f.w===2?'w2':''}"><span>${esc(f.l)}${f.req?' *':''} ${f.hint?`<span class="hint">· ${esc(f.hint)}</span>`:''}</span>${inp}</label>`;
+}
+function openForm(col,id){
+ const s=SCHEMA[col],o=id?D[col].find(x=>x.id===id):null;if(id&&!o)return;
+ M={col,id,del:false};
+ let linked='';
+ if(col==='opps'&&o){const acts=D.activities.filter(a=>a.oppId===o.id).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1),aps=D.approvals.filter(a=>a.oppId===o.id);
+  linked=`<div class="linked"><h2 style="font-size:16px">연결된 활동 ${acts.length}건 · 품의 ${aps.length}건</h2><ul class="list">${acts.slice(0,5).map(a=>`<li data-edit="activities:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.type)} · ${esc(a.owner)}</div></div><div class="r">${esc(a.date)}</div></li>`).join('')}${aps.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)}</div></div><div class="r">${statChip(a.status)}</div></li>`).join('')}</ul></div>`}
+ const ro=!canWrite;
+ $('#modal').innerHTML=`<div class="ov" data-close="1"><form class="panel" id="frm" novalidate><h2><span>${esc(s.name)} ${o?'수정':'등록'}</span><button type="button" class="btn sm" data-close="1" aria-label="닫기">닫기</button></h2><div class="form">${s.fields.map(f=>field(f,o?o[f.k]:undefined)).join('')}<div class="calc" id="calc" ${['opps','approvals'].includes(col)?'':'hidden'}></div></div><div class="pfoot">${ro?'<span class="s">보기 전용 권한입니다.</span>':`<button class="btn pri" type="submit">저장</button>${o?'<button class="btn" type="button" id="delBtn">삭제</button>':''}`}<span class="err" id="ferr"></span><span class="sp"></span>${o&&col==='opps'&&!ro?`<button class="btn" type="button" data-new="activities" data-opp="${esc(o.id)}">+ 활동 기록</button><button class="btn" type="button" data-new="approvals" data-opp="${esc(o.id)}">+ 품의 작성</button>`:''}</div>${linked}</form></div>`;
+ if(ro)$('#frm').querySelectorAll('input,select,textarea').forEach(e=>e.disabled=true);
+ calc();const first=$('#frm input,#frm select');if(first&&!ro)first.focus();
+}
+function calc(){
+ const c=$('#calc');if(!c||c.hidden)return;
+ const a=num($('#f_amount')?.value),k=num($('#f_cost')?.value),st=$('#f_stage')?.value,pv=$('#f_prob')?.value;
+ const p=pv!==undefined&&pv!==''?num(pv):(STAGES.find(s=>s.k===st)?.p??null);
+ c.innerHTML=`<span>GP <b>${fmt(a-k)}</b> 백만원</span><span>GP율 <b>${pct(a-k,a)}%</b></span>${p!==null&&st?`<span>확도 ${p}% → 가중매출 <b>${fmt(a*p/100)}</b> 백만원</span>`:''}`;
+}
+async function save(e){
+ e.preventDefault();const s=SCHEMA[M.col],o={};const err=$('#ferr');
+ for(const f of s.fields){let v=$('#f_'+f.k).value.trim();if(f.t==='num')v=v===''?null:num(v);if(f.req&&(v===''||v===null)){err.textContent=`${f.l}을(를) 입력해 주세요.`;$('#f_'+f.k).focus();return}o[f.k]=v}
+ if(o.oppId&&'customer' in o&&!o.customer)o.customer=D.opps.find(x=>x.id===o.oppId)?.customer||'';
+ const old=M.id?D[M.col].find(x=>x.id===M.id):null;const{id:_i,...rest}=old||{};
+ const body={...rest,...o,updatedAt:Date.now()};if(!old)body.createdAt=Date.now();
+ if(M.col==='approvals'&&(old?.status!==o.status)&&['승인','반려'].includes(o.status))body.decidedAt=TODAY;
+ if(!db){err.textContent='저장소에 연결되지 않았습니다.';return}
+ try{const c=db.collection(M.col);await (M.id?c.doc(M.id):c.doc()).set(body);
+  if(M.col==='approvals'&&o.kind==='수주품의'&&o.status==='승인'&&o.oppId)await winOpp(o.oppId);
+  closeM()}catch(x){err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
+}
+async function winOpp(id){const o=D.opps.find(x=>x.id===id);if(o&&o.stage!=='수주'){const{id:_,...r}=o;await db.collection('opps').doc(id).set({...r,stage:'수주',closeDate:o.closeDate||TODAY,updatedAt:Date.now()})}}
+const closeM=()=>{$('#modal').innerHTML='';M=null};
+
+/* ---------- sample ---------- */
+function sampleSet(){
+ const S=1,o=(id,name,customer,stage,dept,owner,product,amount,cost,d)=>({id,name,customer,stage,dept,owner,product,amount,cost,closeDate:addDays(d),sample:S});
+ return{
+ customers:[['c1','한빛제조','매출처','제조','이기회','정과장','02-555-0101'],['c2','서해물류','매출처','물류','박수주','최차장','032-555-0102'],['c3','누리금융','End User','금융','김영업','한부장','02-555-0103'],['c4','도시교통공사','매출처','공공','김영업','오주무관','02-555-0104'],['c5','데이터웍스','파트너','IT서비스','박수주','윤대표','02-555-0105']].map(([id,name,kind,industry,owner,contact,phone])=>({id:'smp-'+id,name,kind,industry,owner,contact,phone,sample:S})),
+ opps:[o('smp-o1','스마트팩토리 품질예측 AI','한빛제조','제안·협상','제조사업본부','이기회','AI 분석 솔루션',820,560,18),o('smp-o2','물류 수요예측 플랫폼 구축','서해물류','VRB','제조사업본부','박수주','빅데이터 플랫폼',1250,900,45),o('smp-o3','이상거래 탐지 고도화','누리금융','수주','금융사업본부','김영업','AI 분석 솔루션',640,410,-20),o('smp-o4','교통 빅데이터 분석 BI','도시교통공사','기회','공공사업본부','김영업','BI 대시보드',380,250,75),o('smp-o5','전사 클라우드 DW 전환','누리금융','잠재','금융사업본부','김영업','클라우드 DW',1600,1150,120),o('smp-o6','설비 데이터 레이크','한빛제조','수주','제조사업본부','이기회','빅데이터 플랫폼',930,640,-50),o('smp-o7','승객 혼잡도 예측 PoC','도시교통공사','실주','공공사업본부','박수주','AI 분석 솔루션',120,90,-10),o('smp-o8','물류센터 운영 대시보드','서해물류','제안·협상','제조사업본부','박수주','BI 대시보드',260,170,25)],
+ activities:[[-1,'방문','한빛제조','smp-o1','품질예측 모델 중간 결과 공유','불량률 예측 정확도 91% 시연, 현업 반응 긍정적','최종 제안서 제출','이기회'],[-2,'데모/PoC','서해물류','smp-o2','수요예측 데모 시연','3개 센터 데이터로 데모, 정확도 개선 요청','VRB 자료 준비','박수주'],[-3,'전화','누리금융','smp-o5','DW 전환 예산 확인','내년 상반기 예산 편성 검토 중','CIO 미팅 요청','김영업'],[-5,'미팅','도시교통공사','smp-o4','요구사항 청취 미팅','BI 대상 지표 30종 정리','RFP 초안 검토','김영업'],[-6,'제안발표','서해물류','smp-o8','운영 대시보드 제안 발표','경쟁 2개사, 가격 협상 예정','견적 조정','박수주'],[-9,'방문','누리금융','smp-o3','이상탐지 착수 보고','착수 완료, 일정 확정','주간 보고','김영업'],[-12,'미팅','데이터웍스','','파트너 협력 방안 논의','공공 사업 공동 제안 검토','협약서 초안','박수주'],[-35,'방문','한빛제조','smp-o6','데이터 레이크 검수','검수 완료','잔금 청구','이기회']].map(([d,type,customer,oppId,title,content,next,owner],i)=>({id:'smp-a'+i,date:addDays(d),type,customer,oppId,title,content,next,owner,sample:S})),
+ approvals:[['수주품의','승인','smp-o3','누리금융 이상거래 탐지 수주품의',640,410,'김영업','금융사업본부장'],['원가산정','결재요청','smp-o1','한빛제조 품질예측 원가산정표',820,560,'이기회','제조사업본부장'],['실행/판매품의','결재요청','smp-o8','서해물류 대시보드 판매품의',260,170,'박수주','제조사업본부장'],['구매요청','작성중','smp-o3','GPU 서버 구매요청',85,85,'김영업',''],['계약','승인','smp-o6','한빛제조 데이터 레이크 계약',930,640,'이기회','대표이사']].map(([kind,status,oppId,title,amount,cost,requester,approver],i)=>({id:'smp-p'+i,kind,status,oppId,title,amount,cost,requester,approver,createdAt:Date.now()-i*86400000,decidedAt:['승인','반려'].includes(status)?addDays(-i-3):'',sample:S})),
+ receivables:[['한빛제조','smp-o6',-60,-30,465,465,'이기회'],['한빛제조','smp-o6',-30,-5,465,0,'이기회'],['누리금융','smp-o3',-10,20,192,0,'김영업'],['누리금융','smp-o3',5,50,448,0,'김영업']].map(([customer,oppId,inv,due,amount,collected,owner],i)=>({id:'smp-r'+i,customer,oppId,invoiceDate:addDays(inv),dueDate:addDays(due),amount,collected,owner,plan:collected>=amount?'회수 완료':'세금계산서 발행 후 30일 내 현금 회수',sample:S})),
+ vendors:[['데이터웍스','설비 데이터 레이크','3개월',5,4,5,4,'이기회'],['알파개발','설비 데이터 레이크','2개월',3,2,3,4,'이기회'],['데이터웍스','이상거래 탐지 고도화','진행 중',4,5,4,5,'김영업']].map(([name,project,period,q,d,c,t,evaluator],i)=>({id:'smp-v'+i,name,project,period,q,d,c,t,evaluator,comment:'',sample:S}))};
+}
+async function sample(add){
+ if(!db)return;const n=$('#net');n.textContent=add?'샘플 데이터를 넣는 중…':'샘플 데이터를 지우는 중…';
+ try{if(add){const S=sampleSet();for(const[col,a]of Object.entries(S))for(const{id,...b}of a)await db.collection(col).doc(id).set({...b,createdAt:b.createdAt||Date.now()})}
+  else{for(const col of Object.keys(SCHEMA))for(const x of D[col].filter(y=>y.sample))await db.collection(col).doc(x.id).delete()}
+  n.textContent='저장됨'}catch(e){console.error(e);n.textContent='처리하지 못했습니다'}
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',async e=>{
+ const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],#delBtn');if(!t)return;
+ if(t.matches('select'))return;
+ if(t.dataset.close!==undefined){if(e.target===t||t.tagName==='BUTTON')closeM();return}
+ if(t.id==='delBtn'){if(!M.del){M.del=true;t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection(M.col).doc(M.id).delete();closeM()}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
+ if(t.dataset.new){const opp=t.dataset.opp;openForm(t.dataset.new);if(opp){$('#f_oppId').value=opp;const o=D.opps.find(x=>x.id===opp);if($('#f_customer'))$('#f_customer').value=o?.customer||'';if(t.dataset.new==='approvals'&&o){$('#f_amount').value=o.amount??'';$('#f_cost').value=o.cost??'';$('#f_title').value=o.customer+' '+o.name;calc()}}return}
+ if(t.dataset.edit){if(e.target.closest('button,select'))return;const[c,id]=t.dataset.edit.split(':');openForm(c,id);return}
+ if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=D.approvals.find(x=>x.id===id);if(!a)return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&a.kind==='수주품의'&&a.oppId)await winOpp(a.oppId)}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
+ if(t.dataset.set){const[k,v]=t.dataset.set.split('=');if(t.tagName==='TR')return;F[k]=v;render();return}
+ if(t.dataset.sample){t.disabled=true;await sample(t.dataset.sample==='add')}
+});
+document.addEventListener('change',async e=>{
+ const t=e.target;
+ if(t.dataset.stage){const o=D.opps.find(x=>x.id===t.dataset.stage);if(!o)return;const{id:_,...r}=o;try{await db.collection('opps').doc(o.id).set({...r,stage:t.value,updatedAt:Date.now()})}catch(x){$('#net').textContent='저장하지 못했습니다';render()}return}
+ if(t.dataset.f&&t.tagName==='SELECT'){F[t.dataset.f]=t.value;render()}
+});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.f&&t.tagName==='INPUT'){F[t.dataset.f]=t.value;render()}if(t.closest('#frm'))calc()});
+document.addEventListener('submit',e=>{if(e.target.id==='frm')save(e)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&M)closeM()});
+addEventListener('hashchange',()=>{closeM();render();scrollTo(0,0)});
+
+/* ---------- boot ---------- */
+async function init(){
+ render();const net=$('#net');
+ if(!window.claude?.use){net.textContent='오프라인 미리보기';return}
+ try{db=await window.claude.use('db')}catch(e){db=null}
+ try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}}}catch(e){}
+ if(!db){net.textContent='저장소 연결 불가';render();return}
+ const cols=Object.keys(SCHEMA),done=new Set();
+ const timer=setTimeout(()=>{if(done.size<cols.length)net.textContent='데이터 연결이 지연되고 있습니다'},10000);
+ cols.forEach(c=>db.collection(c).onSnapshot(s=>{D[c]=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache){done.add(c);if(done.size===cols.length){clearTimeout(timer);net.textContent=canWrite?'실시간 공유 중':'보기 전용'}}render();if(M&&M.id&&!D[M.col].some(x=>x.id===M.id))closeM()},err=>{clearTimeout(timer);net.textContent='데이터를 불러오지 못했습니다'}));
+}
+init();
+}
+</script>
