@@ -327,6 +327,7 @@ const saveTabs=()=>{try{localStorage.setItem('sh_tabs',JSON.stringify(TABS))}cat
 
 const teamName=id=>ORGCFG.teams.find(t=>t.id===id)?.name||'';
 let MEMBERS=[],MMSG={ok:'',err:''};
+function denyWrite(x){if(x&&x.code==='invalid_argument'){if(canWrite){canWrite=false;document.body.classList.add('ro');closeM();render()}return true}return false}
 const repLocked=()=>!ME.full&&ME.role==='영업대표'&&!!ME.rep;
 const OWNER_KEYS=['owner','requester','evaluator'];
 const users=()=>{const byName={};Object.entries(REPS).forEach(([uid,r])=>{const n=String(r.name||'');if(n&&!byName[n])byName[n]=uid});
@@ -446,7 +447,7 @@ async function quickSave(e){
  try{const ref=db.collection('opps').doc();await ref.set(body);
   if(!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact,owner:body.owner,createdAt:Date.now(),updatedAt:Date.now()});
   QD={owner:ME.rep||''};render();const m=$('#qOk');if(m)m.innerHTML=`${esc(body.code)} 등록됨 <button type="button" class="btn xs" data-edit="opps:${esc(ref.id)}">상세 입력</button> <button type="button" class="btn xs" data-new="activities" data-opp="${esc(ref.id)}">+ 활동</button>`}
- catch(x){err.textContent='저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
+ catch(x){if(denyWrite(x))return;err.textContent='저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
 }
 function vAct(){
  const owners=uniq(D.activities.map(a=>a.owner));
@@ -781,9 +782,10 @@ function render(force){
  if(!force&&a&&a.isConnected&&$('#main').contains(a)&&((r==='stages'&&a&&a.dataset&&a.dataset.st)||(r==='org'&&a&&a.dataset&&a.dataset.og)||(a&&a.dataset&&(a.dataset.goal||a.dataset.commit))||(a&&['m_name','m_email','m_bulk','reg_name'].includes(a.id))))return;
  let html='';try{html=VIEWS[r]()}catch(e){html=`<p class="err">화면을 그리는 중 오류가 발생했습니다: ${esc(e.message)}</p>`}
  const free=users().filter(u=>u.mid&&!u.joined&&(!u.isOwnerEntry||ME.owner));
- const reg=db&&ME.id&&repsLoaded&&!ME.rep?`<div class="reg"><b>처음 오셨네요. 명단에서 본인 이름을 골라 주세요.</b><span class="s">${free.length?'관리자가 등록한 명단입니다. 이름을 고르면 지정된 팀과 역할이 바로 적용됩니다.':'아직 등록된 명단이 없습니다. 이름을 입력하면 관리자가 팀과 역할을 지정합니다.'}</span>${free.length?`<select id="reg_pick" aria-label="내 이름"><option value="">이름 선택</option>${free.map(u=>`<option value="${esc(u.name)}">${esc(u.name)} · ${esc(u.role)}${u.team?' · '+esc(teamName(u.team)):''}</option>`).join('')}<option value="__other">명단에 없음 (직접 입력)</option></select>`:''}<input id="reg_name" placeholder="예: 홍길동" autocomplete="off" ${free.length?'hidden':''} aria-label="이름 직접 입력"><button class="btn pri" data-reg="1">등록</button><span class="err" id="regErr"></span></div>`:'';
+ const roBanner=db&&!canWrite?`<div class="banner" style="background:var(--redt);color:var(--red)"><b>지금 계정은 ‘보기 전용’ 권한이라 이름 등록·영업기회 등록 등 저장이 되지 않습니다.</b><br>소유자(이경국)에게 이 페이지의 <b>Share(공유) 메뉴에서 본인 이메일을 Editor 권한으로 바꿔 달라</b>고 요청하세요. 회사(조직) 밖 계정은 Editor여야 입력할 수 있습니다. 권한이 바뀐 뒤 페이지를 새로고침하면 됩니다.</div>`:'';
+ const reg=db&&canWrite&&ME.id&&repsLoaded&&!ME.rep?`<div class="reg"><b>처음 오셨네요. 명단에서 본인 이름을 골라 주세요.</b><span class="s">${free.length?'관리자가 등록한 명단입니다. 이름을 고르면 지정된 팀과 역할이 바로 적용됩니다.':'아직 등록된 명단이 없습니다. 이름을 입력하면 관리자가 팀과 역할을 지정합니다.'}</span>${free.length?`<select id="reg_pick" aria-label="내 이름"><option value="">이름 선택</option>${free.map(u=>`<option value="${esc(u.name)}">${esc(u.name)} · ${esc(u.role)}${u.team?' · '+esc(teamName(u.team)):''}</option>`).join('')}<option value="__other">명단에 없음 (직접 입력)</option></select>`:''}<input id="reg_name" placeholder="예: 홍길동" autocomplete="off" ${free.length?'hidden':''} aria-label="이름 직접 입력"><button class="btn pri" data-reg="1">등록</button><span class="err" id="regErr"></span></div>`:'';
  setTimeout(_rg,0);
- $('#main').innerHTML=(db?'':`<div class="banner">데이터 저장소에 연결되지 않아 조회·저장이 되지 않습니다. claude.ai에서 로그인한 상태로 열어 주세요.</div>`)+reg+html+dl();
+ $('#main').innerHTML=roBanner+(db?'':`<div class="banner">데이터 저장소에 연결되지 않아 조회·저장이 되지 않습니다. claude.ai에서 로그인한 상태로 열어 주세요.</div>`)+reg+html+dl();
  if(aid){const el=document.getElementById(aid);if(el&&!el.closest('#modal')){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
 }
 const _render0=render;
@@ -885,7 +887,7 @@ async function save(e){
   if(M.col==='approvals'&&WIN_KINDS.includes(o.kind)&&o.status==='승인'&&o.oppId)await winFromAppr(body);
   if(M.col==='activities'&&o.stageTo&&o.oppId)await setStage(o.oppId,o.stageTo);
   if(M.col==='opps'&&body.customer&&!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact||'',owner:body.owner||'',createdAt:Date.now(),updatedAt:Date.now()});
-  const cb=M.onSaved;closeM();if(cb)await cb(ref.id)}catch(x){err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
+  const cb=M.onSaved;closeM();if(cb)await cb(ref.id)}catch(x){if(denyWrite(x))return;err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
 }
 async function winFromAppr(a){const o=RAW.opps.find(x=>x.id===a.oppId);if(!o)return;const{id,...r}=o;const patch={stage:'수주',closeDate:o.closeDate||TODAY,wonDate:o.wonDate||TODAY,wonBy:a.kind,updatedAt:Date.now()};
  const t=ctTotals(a);if(t.has){if(itemsOf(a).length)patch.items=clone(a.items);if(a.labor&&a.labor.people?.length)patch.labor=clone(a.labor);patch.amtSW=t.sw||null;patch.amtHW=t.hw||null;patch.amtSvc=t.svc||null;patch.cost=Math.round((t.buy+t.lcost)*100)/100;patch.amount=Math.round((t.sw+t.hw+t.svc+num(o.amtMA))*100)/100}
@@ -998,7 +1000,7 @@ document.addEventListener('click',async e=>{
  if(t.dataset.reg){const pk=$('#reg_pick')?.value;const n=(pk&&pk!=='__other'?pk:$('#reg_name').value).trim();if(!n){($('#reg_pick')&&pk!=='__other'?$('#reg_pick'):$('#reg_name')).focus();return}
   if(!ME.owner&&MEMBERS.some(m=>m.owner&&m.name===n)){$('#regErr').textContent='소유자 전용 이름입니다.';return}
   if(Object.entries(REPS).some(([uid,r])=>uid!==ME.id&&String(r.name)===n)){$('#regErr').textContent='이미 다른 사람이 등록한 이름입니다. 관리자에게 문의하세요.';return}
-  try{await db.doc('reps/'+ME.id).set({name:n,createdAt:Date.now()})}catch(x){$('#net').textContent='이름을 등록하지 못했습니다'}return}
+  try{await db.doc('reps/'+ME.id).set({name:n,createdAt:Date.now()})}catch(x){if(denyWrite(x))return;$('#net').textContent='이름을 등록하지 못했습니다'}return}
  if(t.dataset.madd){const n=$('#m_name').value.trim();MMSG={ok:'',err:''};if(!n){$('#m_name').focus();return}if(MEMBERS.some(m=>m.name===n)){MMSG.err=`‘${n}’은(는) 이미 명단에 있습니다.`;render();return}
   try{await db.collection('members').doc().set({name:n,team:$('#m_team').value,role:$('#m_role').value,email:$('#m_email').value.trim(),createdAt:Date.now()});MMSG.ok=`${n} 추가됨`;render();$('#m_name')?.focus()}catch(x){MMSG.err='추가하지 못했습니다 (관리자 권한 필요)';render()}return}
  if(t.dataset.mbulk){MMSG={ok:'',err:''};const lines=$('#m_bulk').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const bad=[],add=[],seen=new Set(MEMBERS.map(m=>m.name));
