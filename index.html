@@ -563,11 +563,12 @@ const teamLabel=t=>{const l=leaderOf(t.id);return `<b>${esc(t.name)}</b>${l?` <s
 const visReps=()=>users().filter(u=>u.role==='영업대표').filter(u=>ME.full?(!F.scope||u.team===F.scope):ME.role==='팀장'?u.team===ME.team||u.id===ME.id:u.id===ME.id);
 const visTeams=()=>ORGCFG.teams.filter(t=>ME.full?(!F.scope||t.id===F.scope):ME.role==='팀장'&&t.id===ME.team);
 function scopeGoal(y){
- if(ME.full){const ts=visTeams();return ts.reduce((a,t)=>addArr(a,goalOf('team:'+t.id,y)),Array(12).fill(0))}
- if(ME.role==='팀장'&&ME.team)return goalOf('team:'+ME.team,y);
+ if(ME.full){const ts=visTeams();return ts.reduce((a,t)=>addArr(a,teamGoal(t.id,y)),Array(12).fill(0))}
+ if(ME.role==='팀장'&&ME.team)return teamGoal(ME.team,y);
  return ME.rep?goalOf('rep:'+ME.rep,y):Array(12).fill(0);
 }
-const canGoal=t=>ME.full||(ME.role==='팀장'&&t.startsWith('rep:')&&teamOf(t.slice(4))===ME.team&&!!ME.team);
+const teamGoal=(tid,y)=>users().filter(u=>u.role==='영업대표'&&u.team===tid).reduce((a,u)=>addArr(a,goalOf('rep:'+u.name,y)),Array(12).fill(0));
+const canGoal=t=>t.startsWith('rep:')&&ME.full||(ME.role==='팀장'&&t.startsWith('rep:')&&teamOf(t.slice(4))===ME.team&&!!ME.team);
 const yearOpts=v=>[num(YEAR)-1,num(YEAR),num(YEAR)+1].map(y=>`<option ${String(y)===String(v)?'selected':''}>${y}</option>`).join('');
 function vGoals(){
  const y=F.gYear||YEAR,ms=monthsOf(y),Z=()=>Array(12).fill(0);
@@ -577,14 +578,13 @@ function vGoals(){
  const teams=visTeams(),reps=visReps();
  const boss=users().find(u=>u.role==='사업부장');
  let body='';
- if(ME.full){const org=teams.reduce((a,t)=>addArr(a,goalOf('team:'+t.id,y)),Z());
-  body+=calcRow(`<b>${esc(orgName())} 사업부 전체</b> <span class="chip red">사업부장 목표</span>${boss?` <span class="s">${esc(boss.name)}</span>`:''}<div class="s">${F.scope?'선택한 팀':'모든 팀'} 목표의 합계 (자동)</div>`,org,'org','','orow')}
+ if(ME.full){const org=teams.reduce((a,t)=>addArr(a,teamGoal(t.id,y)),Z());
+  body+=calcRow(`<b>${esc(orgName())} 사업부 전체</b> <span class="chip red">사업부장 목표</span>${boss?` <span class="s">${esc(boss.name)}</span>`:''}<div class="s">${F.scope?'선택한 팀':'모든 팀'} 목표(=팀원 개인 목표)의 합계 (자동)</div>`,org,'org','','orow')}
  for(const t of teams){const m=reps.filter(u=>u.team===t.id);const rs=m.reduce((a,u)=>addArr(a,goalOf('rep:'+u.name,y)),Z());
-  body+=row('team:'+t.id,`${teamLabel(t)} <span class="chip ink">팀 목표</span>`,'team',t.id,'trow')+m.map(u=>row('rep:'+u.name,`${esc(u.name)} <span class="s">${esc(u.role)}</span>`,'rep',t.id)).join('')+
-  calcRow(`개인 목표 합계 <span class="chip warn" data-diff="${esc(t.id)}" hidden></span>`,rs,'sum',t.id,'srow')}
+  body+=calcRow(`${teamLabel(t)} <span class="chip ink">팀 목표</span><div class="s">팀원 ${m.length}명 개인 목표 합계 (자동)</div>`,rs,'team',t.id,'trow')+(m.length?m.map(u=>row('rep:'+u.name,`${esc(u.name)} <span class="s">${esc(u.role)}</span>`,'rep',t.id)).join(''):`<tr><td colspan="18" class="s" style="padding-left:16px">팀원(영업대표)이 없습니다. 사용자·권한에서 팀원을 지정하세요.</td></tr>`)}
  const loose=reps.filter(u=>!u.team);if(loose.length)body+=`<tr class="trow"><td colspan="18"><b>팀 미지정</b> <span class="s">사용자·권한에서 팀을 지정하세요</span></td></tr>`+loose.map(u=>row('rep:'+u.name,esc(u.name),'rep','')).join('');
  if(!ME.full&&ME.role!=='팀장'&&ME.rep&&!reps.length)body+=row('rep:'+ME.rep,esc(ME.rep),'rep','');
- return head('목표 설정 (팀·개인)',`${esc(y)}년 월별 매출 목표(백만원)를 입력합니다. 입력하는 즉시 분기·연간, 팀원 합계, 사업부 전체 합계가 계산되고, 칸을 벗어나면 저장됩니다. 사업부 전체 목표는 팀 목표의 합계입니다. 팀 목표는 사업부장이, 개인 목표는 사업부장과 해당 팀 팀장이 입력합니다. 팀장의 목표는 팀 목표입니다.`)+
+ return head('목표 설정 (팀·개인)',`${esc(y)}년 월별 매출 목표(백만원)를 입력합니다. 개인(영업대표) 목표만 입력하면 팀 목표(팀장 목표)는 팀원 합계로, 사업부 전체는 팀 합계로 자동 계산됩니다. 입력하는 즉시 분기·연간까지 합산되고, 칸을 벗어나면 저장됩니다. 개인 목표는 사업부장과 해당 팀 팀장이 입력합니다.`)+
  `<div class="filters"><span>연도</span><select data-f="gYear">${yearOpts(y)}</select></div>
  ${body?`<div class="scroll"><table class="gtable" id="gtable"><thead><tr><th>대상</th><th class="n ycol">연간</th>${QS.map((q,i)=>`<th class="n qcol">${i+1}Q</th>`).join('')}${ms.map((m,i)=>`<th class="n">${i+1}월</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요. (시스템 관리 › 조직·팀 설정, 사용자·권한)</p>'}`;
 }
@@ -593,11 +593,10 @@ function recalcGoals(){
  const tb=$('#gtable');if(!tb)return;
  const vals=tr=>Array.from({length:12},(_,i)=>{const td=tr.querySelector(`[data-m="${i}"]`);if(!td)return 0;const inp=td.querySelector('input');return inp?num(inp.value):num(td.querySelector('[data-v]')?.dataset.v)});
  const put=(tr,g)=>{g.forEach((v,i)=>{const sp=tr.querySelector(`[data-m="${i}"] [data-v]`);if(sp){sp.dataset.v=v;sp.textContent=fmt(v)}});QS.forEach((q,i)=>{const c=tr.querySelector(`[data-q="${i}"]`);if(c)c.textContent=fmt(sum(q,k=>g[k]))});const yc=tr.querySelector('[data-y]');if(yc)yc.innerHTML=`<b>${fmt(sum(g,x=>x))}</b>`};
- const rows=[...tb.querySelectorAll('tr[data-kind]')],teamTot={};let org=Array(12).fill(0);
- for(const tr of rows){const k=tr.dataset.kind;if(k==='team'||k==='rep'){const g=vals(tr);put(tr,g);if(k==='team')org=addArr(org,g);else if(tr.dataset.team)teamTot[tr.dataset.team]=addArr(teamTot[tr.dataset.team]||Array(12).fill(0),g)}}
- for(const tr of rows){const k=tr.dataset.kind;
-  if(k==='sum'){const g=teamTot[tr.dataset.team]||Array(12).fill(0);put(tr,g);const tg=vals(rows.find(r=>r.dataset.kind==='team'&&r.dataset.team===tr.dataset.team)||tr),d=sum(g,x=>x)-sum(tg,x=>x),chip=tr.querySelector('[data-diff]');if(chip){chip.hidden=!(sum(tg,x=>x)&&sum(g,x=>x)&&Math.abs(d)>0.001);chip.textContent=`팀 목표보다 ${fmt(Math.abs(d))} ${d<0?'부족':'초과'}`}}
-  if(k==='org')put(tr,org)}
+ const rows=[...tb.querySelectorAll('tr[data-kind]')],teamTot={},Z=()=>Array(12).fill(0);let org=Z();
+ for(const tr of rows)if(tr.dataset.kind==='rep'){const g=vals(tr);put(tr,g);if(tr.dataset.team)teamTot[tr.dataset.team]=addArr(teamTot[tr.dataset.team]||Z(),g)}
+ for(const tr of rows)if(tr.dataset.kind==='team'){const g=teamTot[tr.dataset.team]||Z();put(tr,g);org=addArr(org,g)}
+ for(const tr of rows)if(tr.dataset.kind==='org')put(tr,org);
 }
 function vGoalVs(){
  const y=F.gYear||YEAR,ms=monthsOf(y),P=F.gvP||'m';
@@ -607,7 +606,7 @@ function vGoalVs(){
  const line=(label,goal,opps,cls)=>{const g=sum(idx,i=>goal[i]),a=revAgg(opps,pms);return `<tr class="${cls||''}" style="cursor:default"><td data-l="대상">${label}</td><td class="n" data-l="목표">${fmt(g)}</td><td class="n" data-l="매출 실적"><b>${fmt(a.act)}</b></td><td class="n" data-l="달성률">${g?`<span class="${a.act>=g?'okc':''}">${pct(a.act,g)}%</span>`:'-'}</td><td class="n" data-l="확정(미발행)">${fmt(a.plan)}</td><td class="n" data-l="가중 예상">${fmt(a.wt)}</td><td class="n" data-l="전망">${fmt(a.fc)}</td><td class="n" data-l="전망 달성률">${g?pct(a.fc,g)+'%':'-'}</td><td class="n" data-l="Gap">${g?`<span class="${g-a.fc>0?'gapc':'okc'}">${fmt(g-a.fc)}</span>`:'-'}</td></tr>`};
  const teams=visTeams(),reps=visReps();let body='';
  if(ME.full)body+=line('<b>'+esc(orgName())+' 사업부 전체</b> <span class="chip red">사업부장 목표</span>',scopeGoal(y),F.scope?D.opps.filter(o=>teamOf(o.owner)===F.scope):D.opps,'orow');
- for(const t of teams){body+=line(teamLabel(t),goalOf('team:'+t.id,y),teamOpps(t.id),'trow')+reps.filter(u=>u.team===t.id).map(u=>line(esc(u.name),goalOf('rep:'+u.name,y),ownOpps(u.name))).join('')}
+ for(const t of teams){body+=line(teamLabel(t),teamGoal(t.id,y),teamOpps(t.id),'trow')+reps.filter(u=>u.team===t.id).map(u=>line(esc(u.name),goalOf('rep:'+u.name,y),ownOpps(u.name))).join('')}
  if(!teams.length&&ME.rep)body+=line(esc(ME.rep),goalOf('rep:'+ME.rep,y),ownOpps(ME.rep));
  const G=scopeGoal(y),mon=ms.map((m,i)=>({i,m,g:G[i],...revAgg(D.opps,[m])})),mx=Math.max(1,...mon.map(x=>Math.max(x.g,x.act+x.plan+x.wt)));
  const selOpts=P==='m'?ms.map((m,i)=>`<option value="${i}" ${i===sel?'selected':''}>${i+1}월</option>`).join(''):QS.map((q,i)=>`<option value="${i}" ${i===sel?'selected':''}>${i+1}분기</option>`).join('');
@@ -627,7 +626,7 @@ function vForecast(){
  const teams=visTeams(),reps=visReps();let body='';
  for(const t of teams){const mem=reps.filter(u=>u.team===t.id);const sumC=sum(mem,u=>num(commitOf('rep:'+u.name,m)?.amount));
   body+=mem.map(u=>line('rep:'+u.name,esc(u.name),D.opps.filter(o=>o.owner===u.name),goalOf('rep:'+u.name,y)[mi])).join('')+
-  line('team:'+t.id,`${teamLabel(t)} <span class="s">· 팀원 커밋 합 ${fmt(sumC)} → 팀장 조정</span>`,D.opps.filter(o=>teamOf(o.owner)===t.id),goalOf('team:'+t.id,y)[mi],'trow')}
+  line('team:'+t.id,`${teamLabel(t)} <span class="s">· 팀원 커밋 합 ${fmt(sumC)} → 팀장 조정</span>`,D.opps.filter(o=>teamOf(o.owner)===t.id),teamGoal(t.id,y)[mi],'trow')}
  if(!teams.length&&ME.rep)body+=line('rep:'+ME.rep,esc(ME.rep),D.opps.filter(o=>o.owner===ME.rep),goalOf('rep:'+ME.rep,y)[mi]);
  const tg=scopeGoal(y)[mi],tc=sum(teams,t=>num(commitOf('team:'+t.id,m)?.amount));
  return head('Forecast 커밋','영업대표가 월별 매출 예상 금액을 제출(커밋)하고, 팀장이 팀 단위로 조정합니다. 시스템 값은 참고용입니다: 확정 = 수주 건 매출계획, 유력 = 확도 70% 이상 진행 건, 가중 예상 = 진행 건 × 확도.')+
