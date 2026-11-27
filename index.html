@@ -247,12 +247,13 @@ const DEF_OPEN=[{k:'잠재',p:10,req:[]},{k:'기회',p:30,req:[]},{k:'VRB',p:50,
 let OPEN=DEF_OPEN,STAGES=[];
 const setStages=l=>{OPEN=Array.isArray(l)&&l.length?l:DEF_OPEN;STAGES=[...OPEN,{k:'수주',p:100,req:['amount','cost','closeDate']},{k:'실주',p:0,req:[]}]};
 setStages(null);
-const prob=o=>!blank(o.prob)?num(o.prob):(STAGES.find(s=>s.k===o.stage)?.p??0);
+const prob=o=>o.stage==='수주'?100:o.stage==='실주'?0:!blank(o.prob)?num(o.prob):(STAGES.find(s=>s.k===o.stage)?.p??0);
 const gp=o=>num(o.amount)-num(o.cost);
 const isOpen=o=>!['수주','실주'].includes(o.stage);
 const stageMissing=(o,st)=>(STAGES.find(s=>s.k===st)?.req||[]).filter(k=>k==='amount'?!num(o.amount):blank(o[k])).map(k=>REQ_OPTS[k]);
 const COMPS=[['amtSW','SW 라이선스'],['amtHW','HW'],['amtSvc','용역(M/M)'],['amtMA','유지보수']];
 const LOST_REASONS=['가격','기술/기능 부족','고객 관계','경쟁사 선호','예산 취소/보류','일정','기타'];
+const WIN_KINDS=['수주품의','실행/판매품의','계약'];
 const KINDS={'p-cost':'원가산정','p-order':'수주품의','p-exec':'실행/판매품의','p-demo':'검수조건부/Demo','p-contract':'계약','p-purchase':'구매요청','p-direct':'판매직접비'};
 const ROLES_L=['영업대표','팀장','사업부장'];
 const normRole=r=>r==='본부장'?'사업부장':(ROLES_L.includes(r)?r:'영업대표');
@@ -365,7 +366,8 @@ const arItems=()=>D.opps.filter(o=>o.stage==='수주').flatMap(o=>(Array.isArray
 const uniq=a=>[...new Set(a.filter(Boolean))].sort();
 const opts=(a,v,all)=>`<option value="">${esc(all)}</option>`+a.map(x=>`<option ${x===v?'selected':''}>${esc(x)}</option>`).join('');
 const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
-const stageChip=s=>`<span class="chip ${s==='수주'?'red':s==='실주'?'':'ink'}">${esc(s||'-')}</span>`;
+const stLabel=s=>s==='수주'?'수주(계약)':s;
+const stageChip=s=>`<span class="chip ${s==='수주'?'red':s==='실주'?'':'ink'}">${esc(stLabel(s||'-'))}</span>`;
 const statChip=s=>`<span class="chip ${s==='승인'?'ok':s==='반려'?'red':s==='결재요청'?'warn':''}">${esc(s||'작성중')}</span>`;
 const newBtn=(col,label,extra='',cls='btn pri')=>`<button class="${cls} w" data-new="${col}" ${extra}>+ ${esc(label||SCHEMA[col].name+' 등록')}</button>`;
 const head=(t,p,acts='')=>{const L=LEAF[route()];return `<div class="crumb">${L?esc(L.path.join(' › ')+' › '+L.t):''}</div><div class="head"><div><h1>${esc(t)}</h1>${p?`<p>${p}</p>`:''}</div><div class="acts">${acts}</div></div>`};
@@ -467,7 +469,7 @@ function oppFilter(){
 const lastAct=o=>D.activities.filter(a=>a.oppId===o.id).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1)[0];
 function vOppBoard(){
  const[rows,flt]=oppFilter();
- return head('영업기회 단계 보드','카드의 단계를 바꾸면 바로 저장됩니다. 단계별 필수 항목이 비어 있으면 입력창이 열리고, 실주로 바꾸면 실주 사유를 받습니다.',newBtn('opps','기회 등록'))+flt+`<div class="board">${STAGES.map(s=>{const a=rows.filter(o=>o.stage===s.k).sort((x,y)=>(x.closeDate||'9')>(y.closeDate||'9')?1:-1);return `<div class="col ${s.k==='수주'?'won':''}"><h3><span>${esc(s.k)}</span><span>${a.length}</span></h3><div class="sum">${fmt(sum(a,o=>num(o.amount)))} 백만원 · 확도 ${s.p}%</div>${a.map(o=>{const la=lastAct(o);return `<div class="card" data-edit="opps:${esc(o.id)}">${o.code?`<div class="code">${esc(o.code)}</div>`:''}<div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)}${o.partner?' (via '+esc(o.partner)+')':''} · ${esc(o.owner||'-')}${la?' · 최근활동 '+esc(String(la.date).slice(5)):''}</div><div class="f"><b class="num">${fmt(o.amount)}</b><span class="s" style="margin:0">${esc(o.closeDate||'')}</span></div><div class="f w" style="margin-top:6px"><select data-stage="${esc(o.id)}" aria-label="단계 변경">${STAGES.map(x=>`<option ${x.k===o.stage?'selected':''}>${esc(x.k)}</option>`).join('')}</select>${actBtn(o)}</div></div>`}).join('')||'<p class="empty" style="font-size:13px">없음</p>'}</div>`}).join('')}</div>`;
+ return head('영업기회 단계 보드','카드의 단계를 바꾸면 바로 저장됩니다. 단계별 필수 항목이 비어 있으면 입력창이 열리고, 실주로 바꾸면 실주 사유를 받습니다.',newBtn('opps','기회 등록'))+flt+`<div class="board">${STAGES.map(s=>{const a=rows.filter(o=>o.stage===s.k).sort((x,y)=>(x.closeDate||'9')>(y.closeDate||'9')?1:-1);return `<div class="col ${s.k==='수주'?'won':''}"><h3><span>${esc(stLabel(s.k))}</span><span>${a.length}</span></h3><div class="sum">${fmt(sum(a,o=>num(o.amount)))} 백만원 · 확도 ${s.p}%</div>${a.map(o=>{const la=lastAct(o);return `<div class="card" data-edit="opps:${esc(o.id)}">${o.code?`<div class="code">${esc(o.code)}</div>`:''}<div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)}${o.partner?' (via '+esc(o.partner)+')':''} · ${esc(o.owner||'-')}${la?' · 최근활동 '+esc(String(la.date).slice(5)):''}</div><div class="f"><b class="num">${fmt(o.amount)}</b><span class="s" style="margin:0">${esc(o.closeDate||'')}</span></div><div class="f w" style="margin-top:6px"><select data-stage="${esc(o.id)}" aria-label="단계 변경">${STAGES.map(x=>`<option value="${esc(x.k)}" ${x.k===o.stage?'selected':''}>${esc(stLabel(x.k))}</option>`).join('')}</select>${actBtn(o)}</div></div>`}).join('')||'<p class="empty" style="font-size:13px">없음</p>'}</div>`}).join('')}</div>`;
 }
 function vOppList(){
  const[rows,flt]=oppFilter();
@@ -518,7 +520,7 @@ function vAppr(kind){
  const rows=base.filter(a=>(kind||!F.pKind||a.kind===F.pKind)&&(!F.pSt||(a.status||'작성중')===F.pSt)).sort((a,b)=>num(b.createdAt)-num(a.createdAt));
  const flow=a=>{const s=a.status||'작성중';if(!canWrite)return '';if(s==='작성중')return `<button class="btn sm" data-flow="${esc(a.id)}:결재요청">결재요청</button>`;if(s==='결재요청')return canApprove(a)?`<button class="btn sm red" data-flow="${esc(a.id)}:승인">승인</button> <button class="btn sm" data-flow="${esc(a.id)}:반려">반려</button>`:`<span class="s">${esc(a.approver||'결재자 미지정')} 결재 대기</span>`;if(s==='반려')return `<button class="btn sm" data-flow="${esc(a.id)}:작성중">재작성</button>`;return `<span class="s">${esc(a.decidedAt||'')}</span>`};
  const t=kind?LEAF[route()].t:'전체 품의 결재함';
- const desc=(kind==='수주품의'?'수주품의가 승인되면 연결된 영업기회가 자동으로 수주 단계로 바뀝니다. ':kind?`${esc(kind)} 품의를 작성하고 결재요청 → 승인/반려 순서로 처리합니다. `:'모든 품의를 한 곳에서 결재합니다. ')+'승인·반려 버튼은 지정된 결재자에게만 보입니다.';
+ const desc=(WIN_KINDS.includes(kind)?`${esc(kind)}가 승인되면 연결된 영업기회가 자동으로 수주(계약) 단계로 바뀝니다. `:!kind?'수주품의·실행/판매품의·계약이 승인되면 연결된 영업기회가 자동으로 수주(계약) 단계로 바뀝니다. ':kind?`${esc(kind)} 품의를 작성하고 결재요청 → 승인/반려 순서로 처리합니다. `:'모든 품의를 한 곳에서 결재합니다. ')+'승인·반려 버튼은 지정된 결재자에게만 보입니다.';
  return head(t,desc,newBtn('approvals',kind?kind+' 작성':'품의 작성',kind?`data-kind="${esc(kind)}"`:''))+
  `<div class="kpis">${sts.map(s=>kpi(s,base.filter(a=>(a.status||'작성중')===s).length,'건',s==='결재요청'&&base.some(a=>a.status==='결재요청')?'alert':'')).join('')}${kpi('승인 금액',fmt(sum(base.filter(a=>a.status==='승인'),a=>num(a.amount))),'백만원')}</div>
  <div class="filters">${kind?'':`<select data-f="pKind">${opts(Object.values(KINDS),F.pKind,'전체 구분')}</select>`}<select data-f="pSt">${opts(sts,F.pSt,'전체 상태')}</select></div>`+
@@ -760,7 +762,7 @@ function field(f,v){
  if(f.sub)return `<div class="sub">${esc(f.sub)}</div>`;
  const id='f_'+f.k;let inp;
  if(blank(v))v=typeof f.def==='function'?f.def():(f.def??'');
- if(f.t==='sel'){const op=typeof f.opt==='function'?f.opt():f.opt;if(v&&!op.includes(v))op.push(v);inp=`<select id="${id}">${op.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o||'(변경 없음)')}</option>`).join('')}</select>`}
+ if(f.t==='sel'){const op=typeof f.opt==='function'?f.opt():f.opt;if(v&&!op.includes(v))op.push(v);inp=`<select id="${id}">${op.map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc((f.k==='stage'||f.k==='stageTo')?stLabel(o)||'(변경 없음)':o||'(변경 없음)')}</option>`).join('')}</select>`}
  else if(f.t==='ta')inp=`<textarea id="${id}" rows="3">${esc(v)}</textarea>`;
  else if(f.t==='sum')inp=`<input id="${id}" type="text" readonly value="${esc(v)}" tabindex="-1">`;
  else if(f.t==='opp'){const o=RAW.opps.find(x=>x.id===v);inp=`<input id="f_oppQ" list="dl_opps" value="${esc(o?oppLabel(o):'')}" placeholder="예: 한빛제조 또는 품질예측" autocomplete="off"><input type="hidden" id="${id}" value="${esc(o?o.id:'')}"><div class="oppcard" id="oppCard"></div>`;return `<label class="fld load w2"><span>${esc(f.l)} <span class="hint">· ${esc(f.hint||'고객사나 기회명으로 검색해 고르세요')}</span></span>${inp}</label>`}
@@ -844,7 +846,7 @@ async function save(e){
  const ref=M.id?db.collection(M.col).doc(M.id):db.collection(M.col).doc();
  if(M.col==='opps'&&o.stage==='실주'&&(!old||old.stage!=='실주')){const cb=M.onSaved;openLost(null,body,ref.id,cb);return}
  try{await ref.set(body);
-  if(M.col==='approvals'&&o.kind==='수주품의'&&o.status==='승인'&&o.oppId)await setStage(o.oppId,'수주');
+  if(M.col==='approvals'&&WIN_KINDS.includes(o.kind)&&o.status==='승인'&&o.oppId)await setStage(o.oppId,'수주');
   if(M.col==='activities'&&o.stageTo&&o.oppId)await setStage(o.oppId,o.stageTo);
   if(M.col==='opps'&&body.customer&&!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact||'',owner:body.owner||'',createdAt:Date.now(),updatedAt:Date.now()});
   const cb=M.onSaved;closeM();if(cb)await cb(ref.id)}catch(x){err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
@@ -973,7 +975,7 @@ document.addEventListener('click',async e=>{
   render();return}
  if(t.dataset.new){const opp=t.dataset.opp,kind=t.dataset.kind;openForm(t.dataset.new);if(kind&&$('#f_kind'))$('#f_kind').value=kind;if(opp&&$('#f_oppQ')){const o=RAW.opps.find(x=>x.id===opp);if(o){$('#f_oppQ').value=oppLabel(o);loadOpp(true);$('#f_title')?.focus()}}return}
  if(t.dataset.edit){const[c,id]=t.dataset.edit.split(':');openForm(c,id);return}
- if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&a.kind==='수주품의'&&a.oppId)await setStage(a.oppId,'수주')}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
+ if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&WIN_KINDS.includes(a.kind)&&a.oppId)await setStage(a.oppId,'수주')}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
  if(t.dataset.set){const[k,v]=t.dataset.set.split('=');if(k==='gvP'&&F.gvP!==v)F.gvSel='';F[k]=v;render();return}
  if(t.dataset.sample){t.disabled=true;await sample(t.dataset.sample==='add')}
 });
