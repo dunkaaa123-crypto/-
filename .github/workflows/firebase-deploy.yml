@@ -30,6 +30,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
         run: python3 firebase/check_secrets.py
 
       - uses: actions/setup-node@v4

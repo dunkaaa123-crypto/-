@@ -31,6 +31,20 @@ key_project = (sa.get('project_id') or '').strip()
 if not key_project:
     fail('서비스 계정 키에 project_id 가 없습니다. 키를 다시 생성해 주세요.')
 
+web = os.environ.get('FIREBASE_WEB_CONFIG', '')
+import re as _re
+def _get(k):
+    m = _re.search(r'["\']?' + k + r'["\']?\s*:\s*["\']([^"\']+)["\']', web)
+    return m.group(1).strip() if m else ''
+api, wproj = _get('apiKey'), _get('projectId')
+if web:
+    if not (api.startswith('AIza') and len(api) == 39):
+        fail(f'FIREBASE_WEB_CONFIG 의 apiKey 가 올바르지 않습니다 (AIza 로 시작하는 39자여야 하는데 {len(api)}자). '
+             'Firebase 콘솔 > 프로젝트 설정 > 일반 > 내 앱 > "SDK 설정 및 구성"의 "구성(Config)"에서 firebaseConfig 블록 전체를 다시 복사해 넣어 주세요.')
+    if wproj and wproj != key_project:
+        fail('FIREBASE_WEB_CONFIG 와 FIREBASE_SERVICE_ACCOUNT 가 서로 다른 Firebase 프로젝트의 값입니다 '
+             f'(웹 설정 프로젝트 ID 길이 {len(wproj)}자, 키 프로젝트 ID 길이 {len(key_project)}자). 같은 프로젝트에서 두 값을 모두 다시 복사해 넣어 주세요.')
+    print('웹 설정(apiKey 형식, 프로젝트 일치) 확인 완료')
 if not given:
     print('FIREBASE_PROJECT_ID 가 비어 있어 서비스 계정 키의 프로젝트 ID 를 사용합니다.')
 elif given != key_project:
