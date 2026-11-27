@@ -299,7 +299,7 @@ const SCHEMA={
 };
 const RAW={},D={};Object.keys(SCHEMA).forEach(k=>{RAW[k]=[];D[k]=[]});
 let REPS={},ROLES={},repsLoaded=false;
-const ME={id:null,rep:'',role:'영업대표',team:'',admin:false,full:true};
+const ME={id:null,rep:'',role:'영업대표',team:'',admin:false,owner:false,full:true};
 const OWNF={opps:'owner',activities:'owner',approvals:'requester'};
 const F={plBy:'owner',rPeriod:'month'};
 let db=null,canWrite=true,M=null,STG=null;
@@ -313,11 +313,11 @@ const myLeader=()=>{const us=users();const l=ME.role==='팀장'||ME.role==='사�
 function refreshMe(){
  const me=ME.id?users().find(u=>u.id===ME.id):null;
  ME.rep=me?me.name:'';ME.role=me?me.role:(ME.id&&ROLES[ME.id]?normRole(ROLES[ME.id].role):'영업대표');ME.team=ME.id&&ROLES[ME.id]?.team||'';
- ME.full=ME.admin||!ME.id||ME.role==='사업부장';
+ ME.full=ME.owner||!ME.id||ME.role==='사업부장';
  if(!ME.full)F.scope='';
  if(F.scope&&!ORGCFG.teams.some(t=>t.id===F.scope))F.scope='';
  document.body.classList.toggle('noadmin',!ME.admin);
- $('#me').innerHTML=ME.id?`${ME.full?`<select id="scopeSel" aria-label="조회 범위"><option value="">${esc(orgName())} 전체</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}" ${t.id===F.scope?'selected':''}>${esc(t.name)}</option>`).join('')}</select> `:''}${esc(ME.rep||'미등록')}<span class="chip ${ME.full?'ink':''}">${ME.admin?'관리자':esc(ME.role)}${!ME.full&&ME.team?' · '+esc(teamName(ME.team)):''}</span>`:'';
+ $('#me').innerHTML=ME.id?`${ME.full?`<select id="scopeSel" aria-label="조회 범위"><option value="">${esc(orgName())} 전체</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}" ${t.id===F.scope?'selected':''}>${esc(t.name)}</option>`).join('')}</select> `:''}${esc(ME.rep||'미등록')}<span class="chip ${ME.full?'ink':''}">${ME.owner?'소유자':esc(ME.role)}${!ME.owner&&ME.admin?' · 관리':''}${!ME.full&&ME.team?' · '+esc(teamName(ME.team)):''}</span>`:'';
  const tm=new Map(users().map(u=>[u.name,u.team]));
  const ok=n=>{if(ME.full)return !F.scope||tm.get(n)===F.scope;if(ME.rep&&n===ME.rep)return true;return ME.role==='팀장'&&!!ME.team&&tm.get(n)===ME.team};
  for(const c of Object.keys(SCHEMA)){const f=OWNF[c];D[c]=!f?RAW[c]:RAW[c].filter(x=>ok(x[f])||(c==='approvals'&&ME.rep&&x.approver===ME.rep))}
@@ -491,7 +491,7 @@ function vPLMonth(){
  `<div class="sec month">${md.map(x=>`<div class="row ${x.m===MONTH?'cur':''}"><span>${esc(x.m)}</span><div class="bar"><i class="k" style="width:${x.won/mx*100}%"></i><i class="w" style="left:${x.won/mx*100}%;width:${x.wt/mx*100}%"></i></div><span class="num" style="text-align:right">${fmt(x.won+x.wt)} <small style="color:var(--mut)">${x.n}건</small></span></div>`).join('')}<div class="legend"><span><i style="background:var(--red)"></i>수주 확정</span><span><i style="background:color-mix(in srgb,var(--red) 45%,transparent)"></i>가중 예상</span><span>굵은 줄 = 이번 달</span></div></div>`;
 }
 
-const canApprove=a=>ME.admin||(ME.rep&&a.approver===ME.rep);
+const canApprove=a=>ME.owner||ME.role==='사업부장'||(ME.rep&&a.approver===ME.rep);
 function vAppr(kind){
  const sts=['작성중','결재요청','승인','반려'];
  const base=D.approvals.filter(a=>!kind||a.kind===kind);
@@ -885,7 +885,7 @@ async function init(){
  refreshMe();renderAll();const net=$('#net');
  if(!window.claude?.use){net.textContent='오프라인 미리보기';return}
  try{db=await window.claude.use('db')}catch(e){db=null}
- try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.admin=!!(await u.canEdit());ME.id=await u.id()}}catch(e){}
+ try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.admin=!!(await u.canEdit());ME.owner=!!(await u.isOwner());ME.id=await u.id()}}catch(e){}
  refreshMe();
  if(!db){net.textContent='저장소 연결 불가';render();return}
  const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+6;
