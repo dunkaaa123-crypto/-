@@ -356,12 +356,33 @@ const recName=c=>{const x=recOf(c);return x?(c.target==='opps'?(x.code?x.code+' 
 const myCmts=()=>ME.rep?CMTS.filter(c=>c.by!==ME.rep&&recOf(c)?.owner===ME.rep).sort((a,b)=>num(b.at)-num(a.at)):[];
 const cmtSeen=()=>num(ME.id&&REPS[ME.id]?.cmtSeen);
 let panelSeen=null;
-function renderBell(){const b=$('#bell');if(!b)return;const show=!!ME.rep&&!!db;b.hidden=!show;if(!show)return;const n=myCmts().filter(c=>num(c.at)>cmtSeen()).length;const bd=$('#bellN');bd.hidden=!n;bd.textContent=n>99?'99+':n;b.title=n?`읽지 않은 코멘트 ${n}건`:'알림';
+const apprPending=()=>ME.rep?RAW.approvals.filter(a=>a.status==='결재요청'&&a.approver===ME.rep&&a.requester!==ME.rep):[];
+const apprDecided=()=>ME.rep?RAW.approvals.filter(a=>['승인','반려'].includes(a.status)&&a.requester===ME.rep&&a.approver!==ME.rep):[];
+function notiItems(){const it=[];
+ for(const c of myCmts())it.push({kind:'cmt',at:num(c.at),open:c.target+':'+c.targetId,who:c.by,role:c.byRole,title:recName(c),body:c.text});
+ for(const a of apprPending())it.push({kind:'req',at:num(a.reqAt||a.updatedAt||a.createdAt),open:'approvals:'+a.id,who:a.requester,role:'결재 요청',title:`${a.kind} · ${a.title}`,body:`금액 ${fmt(a.amount)} 백만원 — 승인 또는 반려가 필요합니다.`});
+ for(const a of apprDecided())it.push({kind:a.status==='승인'?'ok':'no',at:num(a.updatedAt),open:'approvals:'+a.id,who:a.approver,role:'결재 '+a.status,title:`${a.kind} · ${a.title}`,body:a.status==='승인'?'승인되었습니다.':'반려되었습니다. 의견을 확인하세요.'});
+ return it.sort((x,y)=>y.at-x.at)}
+function renderBell(){const b=$('#bell');if(!b)return;const show=!!ME.rep&&!!db;b.hidden=!show;if(!show)return;
+ const seen=cmtSeen(),items=notiItems(),pend=items.filter(i=>i.kind==='req').length,unread=items.filter(i=>i.kind!=='req'&&i.at>seen).length,n=pend+unread;
+ const bd=$('#bellN');bd.hidden=!n;bd.textContent=n>99?'99+':n;b.title=n?`결재 대기 ${pend}건 · 새 알림 ${unread}건`:'알림';
  const pn=$('#bellPanel');if(!pn.hidden)pn.innerHTML=bellPanelHTML()}
-function bellPanelHTML(){const list=myCmts().slice(0,20),seen=panelSeen??cmtSeen();const canN=typeof Notification!=='undefined'&&Notification.permission==='default'&&FB;
- return `<h3><span>내 건에 달린 코멘트</span><button type="button" class="btn xs" data-bellclose="1">닫기</button></h3>${canN?`<p class="s" style="margin:0 0 8px">다른 창을 보고 있을 때도 알림을 받으려면 <button type="button" class="btn xs" data-notiperm="1">브라우저 알림 켜기</button></p>`:''}${list.length?list.map(c=>`<div class="nitem ${num(c.at)>seen?'new':''}" data-nopen="${esc(c.target)}:${esc(c.targetId)}"><div><b>${esc(c.by||'')}</b> <span class="s">${esc(c.byRole||'')} · ${esc(fmtAt(c.at))}</span></div><div class="s" style="color:var(--ink)">${esc(recName(c))}</div><div style="font-size:13px;margin-top:2px">${esc(c.text.length>90?c.text.slice(0,90)+'…':c.text)}</div></div>`).join(''):'<p class="empty">아직 받은 코멘트가 없습니다.</p>'}`}
+function bellPanelHTML(){const items=notiItems().slice(0,25),seen=panelSeen??cmtSeen();const canN=typeof Notification!=='undefined'&&Notification.permission==='default'&&FB;
+ const tag=i=>i.kind==='req'?'<span class="chip warn">결재 대기</span>':i.kind==='ok'?'<span class="chip ok">승인</span>':i.kind==='no'?'<span class="chip red">반려</span>':'<span class="chip cmt">코멘트</span>';
+ return `<h3><span>알림</span><button type="button" class="btn xs" data-bellclose="1">닫기</button></h3>${canN?`<p class="s" style="margin:0 0 8px">다른 창을 보고 있을 때도 알림을 받으려면 <button type="button" class="btn xs" data-notiperm="1">브라우저 알림 켜기</button></p>`:''}${items.length?items.map(i=>`<div class="nitem ${i.kind==='req'||i.at>seen?'new':''}" data-nopen="${esc(i.open)}"><div>${tag(i)} <b>${esc(i.who||'')}</b> <span class="s">${esc(i.role||'')} · ${esc(fmtAt(i.at))}</span></div><div class="s" style="color:var(--ink)">${esc(i.title)}</div><div style="font-size:13px;margin-top:2px">${esc(String(i.body||'').length>90?String(i.body).slice(0,90)+'…':i.body)}</div></div>`).join(''):'<p class="empty">새 알림이 없습니다.</p>'}`}
+/* ---- 메일 알림 (Firebase 버전: mail 컬렉션 → Trigger Email 확장이 발송) ---- */
+const SITE=()=>location.origin+location.pathname;
+async function queueMail(toName,kind,subject,lines,open){if(!FB||!db||!toName)return;const m=MEMBERS.find(x=>x.name===toName);const to=emKey(m?.email);if(!to||to===ME.email)return;
+ const url=SITE()+(open?'?open='+encodeURIComponent(open):'');const text=lines.join('\n')+'\n\n바로가기: '+url+'\n\n— AX Sales Hub (자동 발송 메일)';
+ const html=`<div style="font-family:'Malgun Gothic',sans-serif;font-size:14px;line-height:1.6;color:#111"><div style="border-top:4px solid #2547d0;padding-top:12px"><b style="font-size:16px">AX Sales Hub</b></div>${lines.map(l=>`<p style="margin:6px 0">${esc(l)}</p>`).join('')}<p style="margin:16px 0"><a href="${esc(url)}" style="background:#2547d0;color:#fff;padding:10px 16px;border-radius:4px;text-decoration:none;font-weight:700">시스템에서 열기</a></p><p style="color:#888;font-size:12px">이 메일은 AX Sales Hub에서 자동으로 보냈습니다.</p></div>`;
+ try{await db.collection('mail').doc().set({to,message:{subject:'[AX Sales Hub] '+subject,text,html},kind,by:ME.rep,createdAt:Date.now()})}catch(e){}}
+function mailApproval(a,id,status){const op=RAW.opps.find(x=>x.id===a.oppId);const base=[`${a.kind}: ${a.title}`,`영업기회: ${op?(op.code?op.code+' ':'')+op.name+' ('+(op.customer||'')+')':'-'}`,`금액: ${fmt(a.amount)} 백만원${num(a.cost)?' / 원가 '+fmt(a.cost)+' 백만원 (GP율 '+pct(num(a.amount)-num(a.cost),num(a.amount))+'%)':''}`];
+ if(status==='결재요청')return queueMail(a.approver,'approval_request',`결재 요청 · ${a.kind} · ${a.title}`,[`${a.requester||''}님이 결재를 요청했습니다.`,...base,a.memo?`내용: ${a.memo}`:''].filter(Boolean),'approvals:'+id);
+ if(status==='승인'||status==='반려')return queueMail(a.requester,'approval_'+(status==='승인'?'ok':'no'),`결재 ${status} · ${a.kind} · ${a.title}`,[`${a.approver||''}님이 ${status}했습니다.`,...base,a.memo?`의견: ${a.memo}`:''].filter(Boolean),'approvals:'+id)}
 async function markSeen(){if(!ME.id||!ME.rep)return;const r=REPS[ME.id]||{name:ME.rep};try{await db.doc('reps/'+ME.id).set({...r,cmtSeen:Date.now()})}catch(e){}}
-let toastT=null;
+let toastT=null,apprPrev=null,OPEN_PARAM=(()=>{try{return new URLSearchParams(location.search).get('open')||''}catch(e){return ''}})();
+function openParam(){if(!OPEN_PARAM)return;const[c,id]=OPEN_PARAM.split(':');const list=c==='approvals'?RAW.approvals:RAW[c];if(!list||!list.some(x=>x.id===id))return;OPEN_PARAM='';try{history.replaceState(null,'',location.pathname+location.hash)}catch(e){}openForm(c,id)}
+function apprWatch(){if(!ME.rep)return;const cur={};for(const a of RAW.approvals)cur[a.id]=a.status;if(apprPrev){for(const a of RAW.approvals){const was=apprPrev[a.id];if(was===a.status)continue;if(a.status==='결재요청'&&a.approver===ME.rep&&a.requester!==ME.rep)toast(`${a.requester||''}님의 결재 요청`,`${a.kind} · ${a.title}`,'approvals:'+a.id);if(['승인','반려'].includes(a.status)&&was&&a.requester===ME.rep&&a.approver!==ME.rep)toast(`결재 ${a.status}`,`${a.kind} · ${a.title} (${a.approver||''})`,'approvals:'+a.id)}}apprPrev=cur}
 function toast(title,body,target){const t=$('#toast');t.innerHTML=`<b>${esc(title)}</b>${esc(body)}`;t.dataset.open=target||'';t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},8000)}
 function notifyNew(list){for(const c of list){const title=`${c.by||''} ${c.byRole||''}님의 코멘트`,body=`${recName(c)} — ${c.text.length>60?c.text.slice(0,60)+'…':c.text}`;toast(title,body,c.target+':'+c.targetId);
   try{if(FB&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.visibilityState!=='visible'){const n=new Notification('AX Sales Hub · '+title,{body,tag:c.id});n.onclick=()=>{window.focus();openForm(c.target,c.targetId);n.close()}}}catch(e){}}}
@@ -931,6 +952,7 @@ async function save(e){
  const body={...rest,...o,updatedAt:Date.now()};if(!old)body.createdAt=Date.now();
  if(M.col==='opps'&&!body.code)body.code=nextCode();
  if(M.col==='opps'&&body.stage==='수주'&&!body.wonDate)body.wonDate=TODAY;
+ if(M.col==='approvals'&&o.status==='결재요청'&&old?.status!=='결재요청')body.reqAt=Date.now();
  if(M.col==='approvals'&&(old?.status!==o.status)&&['승인','반려'].includes(o.status)){if(!canApprove(body)){err.textContent='승인·반려는 지정된 결재자만 할 수 있습니다.';return}body.decidedAt=TODAY}
  if(M.col==='approvals'&&M.draft){body.items=M.draft.items||[];if(M.draft.labor&&M.draft.labor.people?.length)body.labor=M.draft.labor;else delete body.labor}
  if(!db){err.textContent='저장소에 연결되지 않았습니다.';return}
@@ -938,6 +960,7 @@ async function save(e){
  if(M.col==='opps'&&o.stage==='실주'&&(!old||old.stage!=='실주')){const cb=M.onSaved;openLost(null,body,ref.id,cb);return}
  try{await ref.set(body);
   if(M.col==='approvals'&&WIN_KINDS.includes(o.kind)&&o.status==='승인'&&o.oppId)await winFromAppr(body);
+  if(M.col==='approvals'&&old?.status!==o.status&&['결재요청','승인','반려'].includes(o.status))await mailApproval(body,ref.id,o.status);
   if(M.col==='activities'&&o.stageTo&&o.oppId)await setStage(o.oppId,o.stageTo);
   if(M.col==='opps'&&body.customer&&!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact||'',owner:body.owner||'',createdAt:Date.now(),updatedAt:Date.now()});
   const cb=M.onSaved;closeM();if(cb)await cb(ref.id)}catch(x){if(denyWrite(x))return;err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
@@ -1035,7 +1058,7 @@ document.addEventListener('click',async e=>{
  if(t.dataset.lost){openLost(t.dataset.lost);return}
  if(t.dataset.reopen){const o=RAW.opps.find(x=>x.id===t.dataset.reopen);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,stage:OPEN[OPEN.length-1].k,updatedAt:Date.now()});closeM()}catch(x){$('#ferr').textContent='저장하지 못했습니다.'}return}
  if(t.dataset.mkrev){const o=RAW.opps.find(x=>x.id===t.dataset.mkrev);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,rev:[{label:'일시',month:wonMonth(o)||MONTH,amount:num(o.amount)}],updatedAt:Date.now()})}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
- if(t.dataset.cmtadd){const tx=$('#cmt_text');const text=(tx?.value||'').trim();if(!text||!M?.id){tx?.focus();return}if(!canComment())return;t.disabled=true;try{await db.collection('comments').doc().set({target:M.col,targetId:M.id,text,by:ME.rep,byRole:ME.owner&&ME.role!=='팀장'?'사업부장':ME.role,at:Date.now()});tx.value='';const l=$('#cmtlist');if(l)l.innerHTML=cmtListHTML(M.col,M.id)}catch(x){if(!denyWrite(x))$('#ferr').textContent='코멘트를 저장하지 못했습니다.'}t.disabled=false;return}
+ if(t.dataset.cmtadd){const tx=$('#cmt_text');const text=(tx?.value||'').trim();if(!text||!M?.id){tx?.focus();return}if(!canComment())return;t.disabled=true;try{const role=ME.owner&&ME.role!=='팀장'?'사업부장':ME.role;await db.collection('comments').doc().set({target:M.col,targetId:M.id,text,by:ME.rep,byRole:role,at:Date.now()});{const rec=(M.col==='opps'?RAW.opps:RAW.activities).find(x=>x.id===M.id);if(rec&&rec.owner&&rec.owner!==ME.rep)queueMail(rec.owner,'comment',`코멘트 · ${M.col==='opps'?(rec.code?rec.code+' ':'')+rec.name:'활동 · '+(rec.title||'')}`,[`${ME.rep} ${role}님이 코멘트를 남겼습니다.`,`대상: ${M.col==='opps'?(rec.code?rec.code+' ':'')+rec.name+' ('+(rec.customer||'')+')':'활동 · '+(rec.title||'')+' ('+(rec.date||'')+')'}`,`코멘트: ${text}`],M.col+':'+M.id)}tx.value='';const l=$('#cmtlist');if(l)l.innerHTML=cmtListHTML(M.col,M.id)}catch(x){if(!denyWrite(x))$('#ferr').textContent='코멘트를 저장하지 못했습니다.'}t.disabled=false;return}
  if(t.dataset.cmtdel){if(t.dataset.ok!=='1'){t.dataset.ok='1';t.textContent='한 번 더';t.classList.add('red');return}try{await db.collection('comments').doc(t.dataset.cmtdel).delete();const l=$('#cmtlist');if(l&&M)l.innerHTML=cmtListHTML(M.col,M.id)}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
  if(t.dataset.itadd){const o=ctObj();const n=$('#it_name').value.trim();if(!o||!n){$('#it_name').focus();return}const nv=k=>{const v=$(k).value;return v===''?null:num(v)};await ctSave(o,{items:[...itemsOf(o),{kind:$('#it_kind').value,name:n,vendor:$('#it_vendor').value.trim(),qty:nv('#it_qty'),buy:nv('#it_buy'),sell:nv('#it_sell')}]},'itemsec',itemsHTML);$('#it_name')?.focus();return}
  if(t.dataset.itdel){const o=ctObj();if(!o)return;await ctSave(o,{items:itemsOf(o).filter((_,i)=>i!==num(t.dataset.itdel))},'itemsec',itemsHTML);return}
@@ -1091,7 +1114,7 @@ document.addEventListener('click',async e=>{
   render();return}
  if(t.dataset.new){const opp=t.dataset.opp,kind=t.dataset.kind;openForm(t.dataset.new);if(kind&&$('#f_kind')){$('#f_kind').value=kind;ctVisible()}if(opp&&$('#f_oppQ')){const o=RAW.opps.find(x=>x.id===opp);if(o){$('#f_oppQ').value=oppLabel(o);loadOpp(true);$('#f_title')?.focus()}}return}
  if(t.dataset.edit){e.preventDefault();const[c,id]=t.dataset.edit.split(':');openForm(c,id);return}
- if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&WIN_KINDS.includes(a.kind)&&a.oppId)await winFromAppr(a)}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
+ if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(s==='결재요청')b.reqAt=Date.now();if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&WIN_KINDS.includes(a.kind)&&a.oppId)await winFromAppr(a);if(['결재요청','승인','반려'].includes(s)){if(s==='결재요청'&&!a.approver)$('#net').textContent='결재자가 지정되지 않아 알림을 보내지 못했습니다';await mailApproval(b,id,s)}}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
  if(t.dataset.set){const[k,v]=t.dataset.set.split('=');if(k==='gvP'&&F.gvP!==v)F.gvSel='';F[k]=v;render();return}
  if(t.dataset.sample){t.disabled=true;await sample(t.dataset.sample==='add')}
 });
@@ -1144,7 +1167,7 @@ async function init(){
  const ownerLink=()=>{if(ownerFix||!ME.owner||!ME.id||!repsLoaded||!membersLoaded)return;const m=MEMBERS.find(x=>x.owner);if(!m)return;const cur=REPS[ME.id];if(cur&&String(cur.name)===m.name)return;ownerFix=true;db.doc('reps/'+ME.id).set({name:m.name,createdAt:cur?.createdAt||Date.now(),updatedAt:Date.now()}).catch(()=>{ownerFix=false})};
  let emailFix=false;
  const emailLink=()=>{if(emailFix||!ME.email||!ME.id||!repsLoaded||!membersLoaded||REPS[ME.id])return;const m=MEMBERS.find(x=>emKey(x.email)===ME.email);if(!m||Object.values(REPS).some(r=>String(r.name)===m.name))return;emailFix=true;db.doc('reps/'+ME.id).set({name:m.name,createdAt:Date.now()}).catch(()=>{emailFix=false})};
- const upd=()=>{ownerLink();emailLink();refreshMe();render();renderBell();if(M&&M.id&&SCHEMA[M.col]&&!RAW[M.col].some(x=>x.id===M.id))closeM()};
+ const upd=()=>{ownerLink();emailLink();refreshMe();render();if(done.has('approvals'))apprWatch();renderBell();openParam();if(M&&M.id&&SCHEMA[M.col]&&!RAW[M.col].some(x=>x.id===M.id))closeM()};
  cols.forEach(c=>db.collection(c).onSnapshot(s=>{RAW[c]=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok(c);upd()},fail));
  db.collection('goals').onSnapshot(s=>{GOALS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('goals');upd()},fail);
  db.collection('comments').onSnapshot(s=>{CMTS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('comments');const l=$('#cmtlist');if(l&&M&&M.id)l.innerHTML=cmtListHTML(M.col,M.id);if(cmtLoaded&&ME.rep){const fresh=CMTS.filter(c=>!cmtKnown.has(c.id)&&c.by!==ME.rep&&recOf(c)?.owner===ME.rep);if(fresh.length)notifyNew(fresh)}CMTS.forEach(c=>cmtKnown.add(c.id));if(!s.metadata.fromCache)cmtLoaded=true;upd()},fail);
