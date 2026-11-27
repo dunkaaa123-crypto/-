@@ -64,7 +64,7 @@ def main():
     (OUT / 'firestore.rules').write_text(rules, encoding='utf8')
 
     print('built', OUT / 'public' / 'index.html', f'({len(page):,} bytes)')
-    print('owners:', owners or '(없음 — OWNER_EMAIL 을 설정하세요)')
+    print('관리자 메일(OWNER_EMAIL) 확인:', ', '.join(f"{e[:2]}…@{e.split('@')[-1]} ({len(e)}자)" for e in owners) or '(없음 — OWNER_EMAIL 을 설정하세요)')
     if not cfg:
         print('경고: FIREBASE_WEB_CONFIG 가 비어 있어 로그인 화면에 "설정 필요"가 표시됩니다.', file=sys.stderr)
 

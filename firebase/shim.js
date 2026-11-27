@@ -96,14 +96,23 @@
     if (!u) { if (session) { location.reload(); return; } show('login'); return; }
     if (!u.emailVerified) { show('verify', manual ? '아직 인증되지 않았습니다. 메일의 인증 링크를 누른 뒤 다시 눌러 주세요.' : u.email + ' 의 메일 인증이 필요합니다. 메일함(스팸함 포함)의 인증 링크를 눌러 주세요.'); return; }
     var email = String(u.email || '').toLowerCase();
+    var lastErr = '';
     u.getIdToken(true).then(function () {
-      return fs.doc('allow/' + email).get().then(function (d) { return d.exists ? d.data() : null; }).catch(function () { return null; });
+      return fs.doc('allow/' + email).get().then(function (d) { return d.exists ? d.data() : null; }).catch(function (e) { lastErr = (e && e.code) || 'error'; return null; });
     }).then(function (prof) {
       if (prof) return { prof: prof, owner: !!prof.owner };
       // 허용 목록에 없지만 소유자(규칙에 등록된 관리자)면 명단을 읽을 수 있다
-      return fs.collection('members').limit(1).get().then(function () { return { prof: null, owner: true }; }).catch(function () { return null; });
+      return fs.collection('members').limit(1).get().then(function () { return { prof: null, owner: true }; }).catch(function (e) { lastErr = (e && e.code) || lastErr || 'error'; return null; });
     }).then(function (res) {
-      if (!res) { show('denied', email + ' 은(는) 명단에 등록되지 않은 이메일입니다. 관리자에게 명단 등록을 요청하세요.'); return; }
+      if (!res) {
+        var why = /permission/.test(lastErr)
+          ? '명단(로그인 허용 목록)에 없고, 배포 때 넣은 관리자 메일(OWNER_EMAIL)과도 다릅니다.'
+          : /not-found|failed-precondition|unavailable/.test(lastErr)
+            ? 'Firestore 데이터베이스에 연결하지 못했습니다. Firebase 콘솔 > Firestore Database 에서 데이터베이스가 만들어져 있는지 확인하세요.'
+            : '확인 중 오류가 났습니다.';
+        show('denied', email + ' — ' + why + ' (확인 코드: ' + (lastErr || '없음') + ')');
+        return;
+      }
       session = { uid: u.uid, email: email, prof: res.prof, owner: res.owner };
       hide();
       addLogout(email);
