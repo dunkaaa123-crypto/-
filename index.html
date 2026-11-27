@@ -1,4 +1,5 @@
-<title>영업관리 시스템</title>
+<title>AX Sales Hub</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232547d0'/%3E%3Crect x='7' y='18' width='4' height='7' rx='1' fill='%23fff' opacity='.55'/%3E%3Crect x='14' y='14' width='4' height='11' rx='1' fill='%23fff' opacity='.75'/%3E%3Crect x='21' y='9' width='4' height='16' rx='1' fill='%23fff'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112,700;112,800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -9,16 +10,31 @@
    COLOUR white ground, black ink, signal red accent, one grey
    TYPE Archivo wide for numerals and titles + Noto Sans KR
    LAYOUT top bar; left menu tree (대/중/소) + sheet tabs + sheet; tree becomes a drawer under 900px */
-:root{color-scheme:light dark;--bg:light-dark(#fff,#0e0e0e);--ink:light-dark(#111,#f1f1f1);--mut:light-dark(#6b6b6b,#a3a3a3);--line:light-dark(#dedede,#2c2c2c);--surf:light-dark(#f4f4f4,#181818);--side:light-dark(#f7f7f7,#141414);--red:light-dark(#e4002b,#ff3b52);--redt:light-dark(#fde6ea,#3a1219);--ok:light-dark(#0a7d3b,#4fd18a);--okt:light-dark(#e3f4ea,#12301f);--warn:light-dark(#9a6400,#f0b444);--warnt:light-dark(#fff3d9,#33270d)}
+:root{color-scheme:light dark;--brand:light-dark(#2547d0,#7f9cff);--brandt:light-dark(#e8edff,#1a2350);--bg:light-dark(#fff,#0e0e0e);--ink:light-dark(#111,#f1f1f1);--mut:light-dark(#6b6b6b,#a3a3a3);--line:light-dark(#dedede,#2c2c2c);--surf:light-dark(#f4f4f4,#181818);--side:light-dark(#f7f7f7,#141414);--red:light-dark(#e4002b,#ff3b52);--redt:light-dark(#fde6ea,#3a1219);--ok:light-dark(#0a7d3b,#4fd18a);--okt:light-dark(#e3f4ea,#12301f);--warn:light-dark(#9a6400,#f0b444);--warnt:light-dark(#fff3d9,#33270d)}
 :root[data-theme=light]{color-scheme:light}
 :root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans KR",system-ui,sans-serif;overflow-x:clip;margin:0}
 .num,.big,h1{font-family:Archivo,"Noto Sans KR",sans-serif;font-stretch:112%}
-header{border-top:6px solid var(--ink);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:15;display:flex;align-items:center;gap:12px;height:56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.brand{font-weight:800;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
-.brand b{color:var(--red)}
+header{border-top:4px solid var(--brand);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:15;display:flex;align-items:center;gap:12px;height:56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.brand .logo{width:30px;height:30px;flex:none;display:block}
+.brand .wm{font-family:Archivo,'Noto Sans KR',sans-serif;font-stretch:112%;font-weight:800;font-size:18px;letter-spacing:-.02em;line-height:1}
+.brand .wm span{color:var(--brand)}
+.brand small{display:block;font-family:'Noto Sans KR',sans-serif;font-stretch:100%;font-size:11px;font-weight:500;color:var(--mut);letter-spacing:.02em;margin-top:3px}
+#bell{position:relative;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+#bell:hover{border-color:var(--brand)}
+#bell svg{width:18px;height:18px}
+#bell .bdg{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center}
+#bellPanel{position:fixed;top:60px;right:max(12px,env(safe-area-inset-right,0px));width:min(380px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:var(--bg);border:1px solid var(--line);border-top:4px solid var(--brand);border-radius:6px;box-shadow:0 12px 32px rgb(0 0 0/.18);z-index:40;padding:12px 14px}
+#bellPanel h3{margin:0 0 8px;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+#bellPanel .nitem{display:block;padding:9px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:4px}
+#bellPanel .nitem:hover{background:var(--surf)}
+#bellPanel .nitem.new{background:var(--brandt)}
+#bellPanel .nitem .s{font-size:12px}
+#toast{position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom,0px));max-width:min(360px,calc(100vw - 32px));background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:6px;box-shadow:0 10px 28px rgb(0 0 0/.25);z-index:60;cursor:pointer;font-size:14px}
+#toast b{display:block;margin-bottom:2px}
 #net{font-size:13px;color:var(--mut);margin-left:auto;white-space:nowrap}
 #menuBtn{display:none}
 .shell{display:grid;grid-template-columns:260px minmax(0,1fr)}
@@ -33,7 +49,7 @@ aside details[open]>summary::before{transform:rotate(90deg)}
 .l2>summary{font-weight:700;font-size:14px;padding:5px 16px 5px 30px;color:var(--ink)}
 .l3{display:block;padding:6px 16px 6px 50px;font-size:14px;color:var(--mut);text-decoration:none;border-left:3px solid transparent}
 .l3:hover{color:var(--ink);background:var(--surf)}
-.l3.on{color:var(--ink);font-weight:700;border-left-color:var(--red);background:var(--bg)}
+.l3.on{color:var(--ink);font-weight:700;border-left-color:var(--brand);background:var(--bg)}
 .l3.opened::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--mut);margin-left:6px;vertical-align:2px}
 .tabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--ink);padding:8px max(3vw,16px) 0;position:sticky;top:56px;background:var(--bg);z-index:10;scrollbar-width:thin}
 .tab{flex:none;display:flex;align-items:center;border:1px solid var(--line);border-bottom:0;border-radius:4px 4px 0 0;background:var(--surf);white-space:nowrap;font-size:13px}
@@ -197,7 +213,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 .rvt input{font:inherit;font-size:13px;padding:3px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink)}
 .code{font-family:Archivo,monospace;font-stretch:100%;font-size:12px;font-weight:700;letter-spacing:.02em;background:var(--ink);color:var(--bg);padding:1px 6px;border-radius:3px;white-space:nowrap}
 .card .code{display:inline-block;margin-bottom:4px}
-.quick{border:2px solid var(--ink);border-top:6px solid var(--red);border-radius:4px;padding:16px 18px;margin-bottom:24px}
+.quick{border:2px solid var(--ink);border-top:6px solid var(--brand);border-radius:4px;padding:16px 18px;margin-bottom:24px}
 .qgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 14px}
 .qgrid .fld.w2{grid-column:span 2}
 .ok{color:var(--ok);font-weight:700;font-size:14px}
@@ -219,12 +235,12 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 .stg label{white-space:nowrap;font-size:13px;margin-right:10px;display:inline-flex;gap:4px;align-items:center}
 .stg td{vertical-align:middle}
 .hbar .row{display:grid;grid-template-columns:8em minmax(0,1fr) 8em;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
-@media(max-width:600px){#me{display:none}.hbar .row{grid-template-columns:6em minmax(0,1fr) 6em}}
+@media(max-width:600px){#me{display:none}.brand small{display:none}.brand .wm{font-size:16px}.hbar .row{grid-template-columns:6em minmax(0,1fr) 6em}}
 </style>
 
 <header>
   <button class="btn sm" id="menuBtn" aria-label="메뉴 열기">☰ 메뉴</button>
-  <span class="brand">영업관리 <b>●</b> Sales Hub</span><span id="net">연결 중…</span><span id="me"></span>
+  <a class="brand" href="#oppmgmt" aria-label="AX Sales Hub 홈"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2547d0"/><stop offset="1" stop-color="#0fb5a6"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><rect x="7" y="18" width="4" height="7" rx="1.2" fill="#fff" opacity=".55"/><rect x="14" y="14" width="4" height="11" rx="1.2" fill="#fff" opacity=".75"/><rect x="21" y="9" width="4" height="16" rx="1.2" fill="#fff"/><path d="M7 14.5 13.5 9l4 3L25 5.5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="25" cy="5.5" r="1.8" fill="#fff"/></svg><span class="wm"><span>AX</span> Sales Hub<small>영업관리 시스템</small></span></a><span id="net">연결 중…</span><button type="button" id="bell" aria-label="알림" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="bdg" id="bellN" hidden>0</span></button><span id="me"></span>
 </header>
 <div class="shell">
   <aside id="tree" aria-label="시스템 메뉴"></aside>
@@ -234,6 +250,8 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
   </section>
 </div>
 <div id="modal"></div>
+<div id="bellPanel" hidden></div>
+<div id="toast" hidden></div>
 
 <script>
 {
@@ -332,7 +350,21 @@ let TABS=['oppmgmt'];try{const s=JSON.parse(localStorage.getItem('sh_tabs')||'nu
 const saveTabs=()=>{try{localStorage.setItem('sh_tabs',JSON.stringify(TABS))}catch(e){}};
 
 const teamName=id=>ORGCFG.teams.find(t=>t.id===id)?.name||'';
-let MEMBERS=[],MMSG={ok:'',err:''},CMTS=[];
+let MEMBERS=[],MMSG={ok:'',err:''},CMTS=[],cmtLoaded=false,cmtKnown=new Set();
+const recOf=c=>(c.target==='opps'?RAW.opps:RAW.activities).find(x=>x.id===c.targetId);
+const recName=c=>{const x=recOf(c);return x?(c.target==='opps'?(x.code?x.code+' ':'')+x.name:'활동 · '+(x.title||'')):'(삭제된 항목)'};
+const myCmts=()=>ME.rep?CMTS.filter(c=>c.by!==ME.rep&&recOf(c)?.owner===ME.rep).sort((a,b)=>num(b.at)-num(a.at)):[];
+const cmtSeen=()=>num(ME.id&&REPS[ME.id]?.cmtSeen);
+let panelSeen=null;
+function renderBell(){const b=$('#bell');if(!b)return;const show=!!ME.rep&&!!db;b.hidden=!show;if(!show)return;const n=myCmts().filter(c=>num(c.at)>cmtSeen()).length;const bd=$('#bellN');bd.hidden=!n;bd.textContent=n>99?'99+':n;b.title=n?`읽지 않은 코멘트 ${n}건`:'알림';
+ const pn=$('#bellPanel');if(!pn.hidden)pn.innerHTML=bellPanelHTML()}
+function bellPanelHTML(){const list=myCmts().slice(0,20),seen=panelSeen??cmtSeen();const canN=typeof Notification!=='undefined'&&Notification.permission==='default'&&FB;
+ return `<h3><span>내 건에 달린 코멘트</span><button type="button" class="btn xs" data-bellclose="1">닫기</button></h3>${canN?`<p class="s" style="margin:0 0 8px">다른 창을 보고 있을 때도 알림을 받으려면 <button type="button" class="btn xs" data-notiperm="1">브라우저 알림 켜기</button></p>`:''}${list.length?list.map(c=>`<div class="nitem ${num(c.at)>seen?'new':''}" data-nopen="${esc(c.target)}:${esc(c.targetId)}"><div><b>${esc(c.by||'')}</b> <span class="s">${esc(c.byRole||'')} · ${esc(fmtAt(c.at))}</span></div><div class="s" style="color:var(--ink)">${esc(recName(c))}</div><div style="font-size:13px;margin-top:2px">${esc(c.text.length>90?c.text.slice(0,90)+'…':c.text)}</div></div>`).join(''):'<p class="empty">아직 받은 코멘트가 없습니다.</p>'}`}
+async function markSeen(){if(!ME.id||!ME.rep)return;const r=REPS[ME.id]||{name:ME.rep};try{await db.doc('reps/'+ME.id).set({...r,cmtSeen:Date.now()})}catch(e){}}
+let toastT=null;
+function toast(title,body,target){const t=$('#toast');t.innerHTML=`<b>${esc(title)}</b>${esc(body)}`;t.dataset.open=target||'';t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},8000)}
+function notifyNew(list){for(const c of list){const title=`${c.by||''} ${c.byRole||''}님의 코멘트`,body=`${recName(c)} — ${c.text.length>60?c.text.slice(0,60)+'…':c.text}`;toast(title,body,c.target+':'+c.targetId);
+  try{if(FB&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&document.visibilityState!=='visible'){const n=new Notification('AX Sales Hub · '+title,{body,tag:c.id});n.onclick=()=>{window.focus();openForm(c.target,c.targetId);n.close()}}}catch(e){}}}
 const canComment=()=>canWrite&&!!ME.rep&&(ME.owner||ME.role==='팀장'||ME.role==='사업부장');
 const cmtsOf=(col,id)=>CMTS.filter(c=>c.target===col&&c.targetId===id).sort((a,b)=>num(a.at)-num(b.at));
 const cmtCount=(col,id)=>CMTS.reduce((n,c)=>n+(c.target===col&&c.targetId===id?1:0),0);
@@ -434,7 +466,7 @@ function vHome(){
  <div class="grid2"><div class="sec funnel"><h2>단계별 파이프라인</h2>${st.map(s=>`<div class="row"><b>${esc(s.k)}</b><div class="bar"><i style="width:${s.amt/mx*100}%"></i><i class="w" style="width:${s.w/mx*100}%"></i></div><div class="val"><b>${fmt(s.amt)}</b> · ${s.n}건</div></div>`).join('')}<div class="legend"><span><i style="background:var(--ink)"></i>예상 매출</span><span><i style="background:var(--red)"></i>확도 반영 가중 매출</span></div></div>
  <div><div class="sec" style="margin-bottom:20px"><h2>30일 내 수주 예정</h2>${soon.length?`<ul class="list">${soon.map(o=>`<li data-edit="opps:${esc(o.id)}"><div><div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner)}</div></div><div class="r"><b class="num">${fmt(o.amount)}</b><br>${esc(o.closeDate)}</div></li>`).join('')}</ul>`:'<p class="empty">30일 안에 수주 예정인 기회가 없습니다.</p>'}</div>
  <div class="sec"><h2>결재 대기 품의 <span class="chip warn">${D.approvals.filter(a=>a.status==='결재요청').length}</span></h2>${wait.length?`<ul class="list">${wait.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)} · ${esc(a.requester)} → ${esc(a.approver||'결재자 미지정')}</div></div><div class="r num">${fmt(a.amount)}</div></li>`).join('')}</ul>`:'<p class="empty">대기 중인 품의가 없습니다.</p>'}</div></div></div>
- ${(()=>{const vis=c=>(c.target==='opps'?D.opps:D.activities).some(x=>x.id===c.targetId);const rc=CMTS.filter(vis).sort((a,b)=>num(b.at)-num(a.at)).slice(0,6);if(!rc.length)return '';const nm=c=>{const x=(c.target==='opps'?D.opps:D.activities).find(y=>y.id===c.targetId);return x?(c.target==='opps'?(x.code?x.code+' ':'')+x.name:'활동 · '+x.title):''};return `<div class="sec" style="margin-bottom:28px"><h2>최근 코멘트 (팀장·사업부장)</h2><ul class="list">${rc.map(c=>`<li data-edit="${esc(c.target)}:${esc(c.targetId)}"><div><div class="t">${esc(nm(c))}</div><div class="s">${esc(c.text.length>80?c.text.slice(0,80)+'…':c.text)}</div></div><div class="r">${esc(c.by||'')} · ${esc(fmtAt(c.at).slice(5))}</div></li>`).join('')}</ul></div>`})()}
+ ${(()=>{const vis=c=>(c.target==='opps'?D.opps:D.activities).some(x=>x.id===c.targetId);const rc=CMTS.filter(vis).sort((a,b)=>num(b.at)-num(a.at)).slice(0,6);if(!rc.length)return '';const nm=c=>{const x=(c.target==='opps'?D.opps:D.activities).find(y=>y.id===c.targetId);return x?(c.target==='opps'?(x.code?x.code+' ':'')+x.name:'활동 · '+x.title):''};return `<div class="sec" style="margin-bottom:28px"><h2>최근 코멘트 (팀장·사업부장)${ME.rep&&myCmts().filter(c=>num(c.at)>cmtSeen()).length?` <span class="chip red">새 코멘트 ${myCmts().filter(c=>num(c.at)>cmtSeen()).length}</span>`:''}</h2><ul class="list">${rc.map(c=>`<li data-edit="${esc(c.target)}:${esc(c.targetId)}"><div><div class="t">${esc(nm(c))}</div><div class="s">${esc(c.text.length>80?c.text.slice(0,80)+'…':c.text)}</div></div><div class="r">${esc(c.by||'')} · ${esc(fmtAt(c.at).slice(5))}</div></li>`).join('')}</ul></div>`})()}
  <div class="sec"><h2>최근 영업활동</h2>${actTable(recent)}</div>
  ${sample?`<p class="note">샘플 데이터가 들어 있습니다. <button class="btn sm w adm" data-sample="del">샘플 데이터 모두 삭제</button></p>`:''}`;
 }
@@ -454,7 +486,7 @@ function vOppMgmt(){
  return head('영업기회 관리','영업의 출발점입니다. 고객 니즈를 발견하면 여기서 영업기회를 바로 등록하세요. 등록하면 기회번호(예: '+esc(nextCode())+')가 부여되고, 이후 활동·견적·품의·채권·실주가 모두 이 번호에 연결됩니다.')+
  `<form class="quick w" id="quickFrm" novalidate><h2>빠른 등록 <span class="s" style="font-weight:400;font-size:14px">· 다음 기회번호 <span class="code">${esc(nextCode())}</span> · 나머지 항목은 등록 후 상세 화면에서</span></h2><div class="qgrid">${QF.map(([k,l,t,list,w])=>`<label class="fld ${w===2?'w2':''}"><span>${esc(l)}</span>${t==='sel'?`<select id="qd_${k}" data-qd="${k}">${srcOpt.map(x=>`<option value="${esc(x)}" ${x===(QD[k]||'')?'selected':''}>${esc(x||'(선택)')}</option>`).join('')}</select>`:`<input id="qd_${k}" data-qd="${k}" type="${t}" ${k==='owner'&&repLocked()?'readonly title="영업대표는 본인 이름으로만 등록됩니다"':''} ${t==='number'?'step="any" inputmode="decimal"':''} ${list?`list="${list}"`:''} value="${esc(k==='owner'&&repLocked()?ME.rep:(QD[k]??''))}" autocomplete="off">`}</label>`).join('')}</div><div class="pfoot"><button class="btn pri" type="submit">영업기회 등록</button><button class="btn" type="button" data-qfull="1">상세 항목까지 입력</button><span class="err" id="qErr"></span><span class="ok" id="qOk"></span></div></form>
  <div class="filters"><div class="seg"><button data-set="mScope=mine" class="${mine?'on':''}">내 기회</button><button data-set="mScope=all" class="${!mine?'on':''}">${ME.full?'전체':'팀 전체'}</button></div><select data-f="mStage"><option value="">진행 중 전체</option>${STAGES.map(x=>`<option ${x.k===F.mStage?'selected':''}>${esc(x.k)}</option>`).join('')}</select><input id="mQ" data-f="mQ" placeholder="기회번호·기회명·고객 검색" value="${esc(F.mQ||'')}"></div>`+
- table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',f:r=>esc(r.customer)+(r.partner?` <span class="s">via ${esc(r.partner)}</span>`:'')},{l:'단계',f:r=>stageChip(r.stage)},{l:'예상매출',n:1,f:r=>fmt(r.amount)},{l:'수주예정',k:'closeDate'},{l:'활동',n:1,f:r=>cnt('activities',r)},{l:'품의',n:1,f:r=>cnt('approvals',r)},{l:'매출회차',n:1,f:r=>Array.isArray(r.rev)?r.rev.length:0},{l:'코멘트',n:1,f:r=>cmtCount('opps',r.id)||''},{l:'최근활동',f:r=>esc(lastAct(r)?.date||'-')},{l:'코멘트',n:1,f:r=>cmtCount('opps',r.id)||''},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
+ table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',f:r=>esc(r.customer)+(r.partner?` <span class="s">via ${esc(r.partner)}</span>`:'')},{l:'단계',f:r=>stageChip(r.stage)},{l:'예상매출',n:1,f:r=>fmt(r.amount)},{l:'수주예정',k:'closeDate'},{l:'활동',n:1,f:r=>cnt('activities',r)},{l:'품의',n:1,f:r=>cnt('approvals',r)},{l:'매출회차',n:1,f:r=>Array.isArray(r.rev)?r.rev.length:0},{l:'코멘트',n:1,f:r=>cmtCount('opps',r.id)||''},{l:'최근활동',f:r=>esc(lastAct(r)?.date||'-')},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
 }
 async function quickSave(e){
  e.preventDefault();const err=$('#qErr'),okm=$('#qOk');err.textContent='';okm.textContent='';
@@ -505,7 +537,7 @@ function vOppBoard(){
 function vOppList(){
  const[rows,flt]=oppFilter();
  rows.sort((a,b)=>STAGES.findIndex(s=>s.k===a.stage)-STAGES.findIndex(s=>s.k===b.stage)||((a.closeDate||'')>(b.closeDate||'')?1:-1));
- return head('영업기회 목록','모든 영업기회의 매출 구성·원가·GP·견적을 표로 봅니다.',newBtn('opps','기회 등록'))+flt+table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',k:'customer'},{l:'매출처',f:r=>esc(r.partner||'직판')},{l:'단계',f:r=>stageChip(r.stage)},{l:'매출합계',n:1,f:r=>fmt(r.amount)},{l:'GP율',n:1,f:r=>pct(gp(r),num(r.amount))+'%'},{l:'확도',n:1,f:r=>prob(r)+'%'},{l:'가중매출',n:1,f:r=>fmt(num(r.amount)*prob(r)/100)},{l:'최종견적',n:1,f:r=>{const q=lastQuote(r);return q?fmt(q.amount):'-'}},{l:'수주예정',k:'closeDate'},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
+ return head('영업기회 목록','모든 영업기회의 매출 구성·원가·GP·견적을 표로 봅니다.',newBtn('opps','기회 등록'))+flt+table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',k:'customer'},{l:'매출처',f:r=>esc(r.partner||'직판')},{l:'단계',f:r=>stageChip(r.stage)},{l:'매출합계',n:1,f:r=>fmt(r.amount)},{l:'GP율',n:1,f:r=>pct(gp(r),num(r.amount))+'%'},{l:'확도',n:1,f:r=>prob(r)+'%'},{l:'가중매출',n:1,f:r=>fmt(num(r.amount)*prob(r)/100)},{l:'최종견적',n:1,f:r=>{const q=lastQuote(r);return q?fmt(q.amount):'-'}},{l:'코멘트',n:1,f:r=>cmtCount('opps',r.id)||''},{l:'수주예정',k:'closeDate'},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
 }
 function vLost(){
  const lost=D.opps.filter(o=>o.stage==='실주'),won=D.opps.filter(o=>o.stage==='수주');
@@ -989,6 +1021,12 @@ async function saveStages(){
 /* ---------- 이벤트 ---------- */
 document.addEventListener('click',async e=>{
  if(e.target.closest('#menuBtn')){document.body.classList.toggle('navopen');return}
+ if(e.target.closest('#bell')){const pn=$('#bellPanel');if(pn.hidden){panelSeen=cmtSeen();pn.innerHTML=bellPanelHTML();pn.hidden=false;markSeen()}else{pn.hidden=true;panelSeen=null}return}
+ if(e.target.closest('[data-bellclose]')){$('#bellPanel').hidden=true;panelSeen=null;return}
+ if(e.target.closest('[data-notiperm]')){try{Notification.requestPermission().then(()=>{$('#bellPanel').innerHTML=bellPanelHTML()})}catch(x){}return}
+ {const ni=e.target.closest('[data-nopen]');if(ni){const[c,id]=ni.dataset.nopen.split(':');$('#bellPanel').hidden=true;panelSeen=null;openForm(c,id);return}}
+ if(e.target.closest('#toast')){const tt=$('#toast');tt.hidden=true;if(tt.dataset.open){const[c,id]=tt.dataset.open.split(':');openForm(c,id)}return}
+ if(!$('#bellPanel').hidden&&!e.target.closest('#bellPanel')){$('#bellPanel').hidden=true;panelSeen=null}
  if(document.body.classList.contains('navopen')&&!e.target.closest('aside')){document.body.classList.remove('navopen');if(!e.target.closest('a'))return}
  const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-madd],[data-mbulk],[data-resync],[data-mdel],[data-mfrom],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],[data-mkrev],[data-cmtadd],[data-cmtdel],[data-itadd],[data-itdel],[data-lbperiod],[data-lbadd],[data-lbdel],[data-applyct],[data-lbrev],#delBtn');if(!t)return;
  if(t.dataset.closetab){const id=t.dataset.closetab,i=TABS.indexOf(id);TABS=TABS.filter(x=>x!==id);if(!TABS.length)TABS=['oppmgmt'];saveTabs();if(route()===id){location.hash=TABS[Math.max(0,i-1)]||'oppmgmt'}else{renderTree();renderTabs()}return}
@@ -1106,10 +1144,10 @@ async function init(){
  const ownerLink=()=>{if(ownerFix||!ME.owner||!ME.id||!repsLoaded||!membersLoaded)return;const m=MEMBERS.find(x=>x.owner);if(!m)return;const cur=REPS[ME.id];if(cur&&String(cur.name)===m.name)return;ownerFix=true;db.doc('reps/'+ME.id).set({name:m.name,createdAt:cur?.createdAt||Date.now(),updatedAt:Date.now()}).catch(()=>{ownerFix=false})};
  let emailFix=false;
  const emailLink=()=>{if(emailFix||!ME.email||!ME.id||!repsLoaded||!membersLoaded||REPS[ME.id])return;const m=MEMBERS.find(x=>emKey(x.email)===ME.email);if(!m||Object.values(REPS).some(r=>String(r.name)===m.name))return;emailFix=true;db.doc('reps/'+ME.id).set({name:m.name,createdAt:Date.now()}).catch(()=>{emailFix=false})};
- const upd=()=>{ownerLink();emailLink();refreshMe();render();if(M&&M.id&&SCHEMA[M.col]&&!RAW[M.col].some(x=>x.id===M.id))closeM()};
+ const upd=()=>{ownerLink();emailLink();refreshMe();render();renderBell();if(M&&M.id&&SCHEMA[M.col]&&!RAW[M.col].some(x=>x.id===M.id))closeM()};
  cols.forEach(c=>db.collection(c).onSnapshot(s=>{RAW[c]=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok(c);upd()},fail));
  db.collection('goals').onSnapshot(s=>{GOALS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('goals');upd()},fail);
- db.collection('comments').onSnapshot(s=>{CMTS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('comments');const l=$('#cmtlist');if(l&&M&&M.id)l.innerHTML=cmtListHTML(M.col,M.id);upd()},fail);
+ db.collection('comments').onSnapshot(s=>{CMTS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('comments');const l=$('#cmtlist');if(l&&M&&M.id)l.innerHTML=cmtListHTML(M.col,M.id);if(cmtLoaded&&ME.rep){const fresh=CMTS.filter(c=>!cmtKnown.has(c.id)&&c.by!==ME.rep&&recOf(c)?.owner===ME.rep);if(fresh.length)notifyNew(fresh)}CMTS.forEach(c=>cmtKnown.add(c.id));if(!s.metadata.fromCache)cmtLoaded=true;upd()},fail);
  db.collection('commits').onSnapshot(s=>{COMMITS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('commits');upd()},fail);
  db.collection('members').onSnapshot(s=>{MEMBERS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache){membersLoaded=true;ok('members')}upd()},fail);
  db.collection('reps').onSnapshot(s=>{REPS={};s.docs.forEach(d=>REPS[d.id]=d.data());if(!s.metadata.fromCache){repsLoaded=true;ok('reps')}upd()},fail);
