@@ -159,6 +159,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 .gin{width:3.9em;font:inherit;font-size:13px;padding:4px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink);text-align:right}
 .gin:focus{border-color:var(--red)}
 .qcol{background:var(--surf)}
+.actcol{background:var(--redt)}
 .ycol{background:color-mix(in srgb,var(--ink) 8%,transparent)}
 .gtable .gname{position:sticky;left:0;background:var(--bg);z-index:1}
 .gtable .orow .gname{background:var(--redt)}
@@ -269,7 +270,7 @@ const MENU=[
  {n:'Pipeline / 손익',c:[
   {n:'현황',c:[['home','영업 대시보드']]},
   {n:'손익 전망',c:[['pl','Pipeline / 손익 집계'],['plmonth','월별 매출 전망']]},
-  {n:'목표 · Forecast',c:[['goals','목표 설정 (팀·개인)'],['goalvs','목표 대비 매출 실적'],['forecast','Forecast 커밋']]}]},
+  {n:'목표 · Forecast',c:[['goals','목표 설정 (팀·개인)'],['goalvs','목표 대비 수주 실적'],['forecast','Forecast 커밋']]}]},
  {n:'수주 / 계약',c:[
   {n:'수주 / 판품',c:[['p-cost','원가산정표'],['p-order','수주품의'],['p-exec','실행/판매품의'],['p-demo','검수조건부/Demo 진행현황']]},
   {n:'구매 / 계약',c:[['p-contract','계약관리'],['p-purchase','구매 요청현황'],['p-direct','판매직접비 요청현황']]},
@@ -289,7 +290,7 @@ const SCHEMA={
   {k:'name',l:'기회명',req:1,w:2},{k:'customer',l:'고객사 (End User)',t:'cust',req:1},{k:'partner',l:'매출처 (파트너 경유 시)',t:'cust',hint:'직판이면 비움'},
   {k:'source',l:'유입 경로',t:'sel',opt:['','기존 고객','전시회/세미나','인바운드 문의','소개','파트너','콜드콜','기타']},{k:'contact',l:'고객 담당자 / 연락처'},
   {k:'stage',l:'단계',t:'sel',opt:()=>STAGES.map(s=>s.k),def:()=>OPEN[0].k},{k:'owner',l:'영업담당',t:'list',src:'owner',def:meDef},
-  {k:'product',l:'솔루션/상품',t:'list',src:'product'},{k:'closeDate',l:'예상 수주일',t:'date'},
+  {k:'product',l:'솔루션/상품',t:'list',src:'product'},{k:'closeDate',l:'예상 수주일',t:'date'},{k:'wonDate',l:'수주일 (실적 기준일)',t:'date',hint:'수주(계약) 시 자동 입력'},
   {sub:'매출 구성 (백만원)'},
   {k:'amtSW',l:'SW 라이선스',t:'num'},{k:'amtHW',l:'HW',t:'num'},{k:'amtSvc',l:'용역 (M/M)',t:'num'},{k:'amtMA',l:'유지보수',t:'num'},
   {k:'amount',l:'매출 합계 (자동)',t:'sum'},{k:'cost',l:'예상 원가',t:'num'},
@@ -358,6 +359,10 @@ const arState=r=>arLeft(r)<=0?'완료':(r.dueDate&&r.dueDate<TODAY?'연체':'정
 const revRows=o=>Array.isArray(o.rev)&&o.rev.length?o.rev:(o.closeDate&&num(o.amount)?[{label:'일시',month:String(o.closeDate).slice(0,7),amount:num(o.amount),auto:1}]:[]);
 const monthsOf=y=>Array.from({length:12},(_,i)=>`${y}-${pad2(i+1)}`);
 const QS=[[0,1,2],[3,4,5],[6,7,8],[9,10,11]];
+const wonMonth=o=>String(o.wonDate||o.closeDate||'').slice(0,7);
+function winAgg(opps,ms){const M=new Set(ms);let act=0,best=0,wt=0;
+ for(const o of opps){const a=num(o.amount);if(o.stage==='수주'){if(M.has(wonMonth(o)))act+=a}else if(isOpen(o)&&M.has(String(o.closeDate||'').slice(0,7))){const p=prob(o);wt+=a*p/100;if(p>=70)best+=a}}
+ return{act,best,wt,fc:act+wt}}
 function revAgg(opps,ms){const M=new Set(ms);let act=0,plan=0,best=0,wt=0;
  for(const o of opps)for(const r of revRows(o)){if(!M.has(r.month))continue;const a=num(r.amount);
   if(o.stage==='수주'){if(r.invoiceDate)act+=a;else plan+=a}
@@ -393,7 +398,7 @@ function vHome(){
  if(!total) return head('영업 대시보드','영업기회부터 수주·채권까지 한 곳에서 관리합니다. 왼쪽 메뉴에서 시트를 열 수 있습니다.')+`<div class="hero-empty"><div><h2>아직 등록된 데이터가 없습니다</h2><p>영업기회를 하나 등록하면 파이프라인과 손익이 자동으로 계산됩니다. 먼저 둘러보려면 샘플 데이터를 넣어 보세요. 샘플은 언제든 한 번에 지울 수 있습니다.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${newBtn('opps','첫 영업기회 등록')}<button class="btn w adm" data-sample="add">샘플 데이터로 둘러보기</button></div></div><div><div class="track">${STAGES.filter(s=>s.k!=='실주').map(s=>`<span>${esc(s.k)}</span>`).join('')}</div><p class="note">영업기회는 기회번호(키)로 활동·품의·채권과 연결되고, 설정된 단계를 거쳐 수주로 진행됩니다. 단계는 시스템 관리 › 영업단계 설정에서 바꿀 수 있습니다.</p></div></div>`;
  const open=D.opps.filter(isOpen),won=D.opps.filter(o=>o.stage==='수주'&&String(o.closeDate||'').startsWith(YEAR));
  const pipe=sum(open,o=>num(o.amount)),wt=sum(open,o=>num(o.amount)*prob(o)/100),wonAmt=sum(won,o=>num(o.amount)),wonGp=sum(won,gp);
- const AR=arItems(),arL=sum(AR,arLeft),over=AR.filter(r=>arState(r)==='연체');const mAgg=revAgg(D.opps,[MONTH]),mGoal=scopeGoal(YEAR)[num(MONTH.slice(5))-1];
+ const AR=arItems(),arL=sum(AR,arLeft),over=AR.filter(r=>arState(r)==='연체');const mAgg=winAgg(D.opps,[MONTH]),mGoal=scopeGoal(YEAR)[num(MONTH.slice(5))-1];
  const newOpps=D.opps.filter(o=>o.createdAt&&ymd(new Date(o.createdAt)).startsWith(MONTH)).length;
  const st=STAGES.filter(s=>s.k!=='실주').map(s=>{const a=D.opps.filter(o=>o.stage===s.k);return{k:s.k,n:a.length,amt:sum(a,o=>num(o.amount)),w:sum(a,o=>num(o.amount)*prob(o)/100)}});
  const mx=Math.max(1,...st.map(s=>s.amt));
@@ -402,7 +407,7 @@ function vHome(){
  const recent=[...D.activities].sort((a,b)=>(b.date||'')>(a.date||'')?1:-1).slice(0,8);
  const sample=Object.values(RAW).some(a=>a.some(x=>x.sample))||GOALS.some(g=>g.sample);
  return head('영업 대시보드',`${esc(TODAY)} 기준 · 금액 단위 백만원${ME.full?(F.scope?' · '+esc(teamName(F.scope))+'만 표시':''):ME.role==='팀장'?' · '+esc(teamName(ME.team)||'팀 미지정')+' 팀원 건만 표시':' · 내 담당 건만 표시'}`,newBtn('activities','활동 기록')+newBtn('opps','기회 등록','','btn'))+
- `<div class="kpis">${kpi('이번 달 매출 실적',fmt(mAgg.act),mGoal?'백만원 · 목표 '+fmt(mGoal)+' ('+pct(mAgg.act,mGoal)+'%)':'백만원')}${kpi('이번 달 신규 기회',newOpps,'건')}${kpi('진행 파이프라인',fmt(pipe),'백만원')}${kpi('가중 예상매출',fmt(wt),'백만원')}${kpi(YEAR+'년 수주',fmt(wonAmt),'백만원')}${kpi('수주 GP율',pct(wonGp,wonAmt),'%')}${kpi('미수금',fmt(arL),'백만원',over.length?'alert':'')}</div>
+ `<div class="kpis">${kpi('이번 달 수주 실적',fmt(mAgg.act),mGoal?'백만원 · 목표 '+fmt(mGoal)+' ('+pct(mAgg.act,mGoal)+'%) · 잔여 '+fmt(Math.max(0,mGoal-mAgg.act)):'백만원')}${kpi('이번 달 신규 기회',newOpps,'건')}${kpi('진행 파이프라인',fmt(pipe),'백만원')}${kpi('가중 예상매출',fmt(wt),'백만원')}${kpi(YEAR+'년 수주',fmt(wonAmt),'백만원')}${kpi('수주 GP율',pct(wonGp,wonAmt),'%')}${kpi('미수금',fmt(arL),'백만원',over.length?'alert':'')}</div>
  <div class="grid2"><div class="sec funnel"><h2>단계별 파이프라인</h2>${st.map(s=>`<div class="row"><b>${esc(s.k)}</b><div class="bar"><i style="width:${s.amt/mx*100}%"></i><i class="w" style="width:${s.w/mx*100}%"></i></div><div class="val"><b>${fmt(s.amt)}</b> · ${s.n}건</div></div>`).join('')}<div class="legend"><span><i style="background:var(--ink)"></i>예상 매출</span><span><i style="background:var(--red)"></i>확도 반영 가중 매출</span></div></div>
  <div><div class="sec" style="margin-bottom:20px"><h2>30일 내 수주 예정</h2>${soon.length?`<ul class="list">${soon.map(o=>`<li data-edit="opps:${esc(o.id)}"><div><div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner)}</div></div><div class="r"><b class="num">${fmt(o.amount)}</b><br>${esc(o.closeDate)}</div></li>`).join('')}</ul>`:'<p class="empty">30일 안에 수주 예정인 기회가 없습니다.</p>'}</div>
  <div class="sec"><h2>결재 대기 품의 <span class="chip warn">${D.approvals.filter(a=>a.status==='결재요청').length}</span></h2>${wait.length?`<ul class="list">${wait.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)} · ${esc(a.requester)} → ${esc(a.approver||'결재자 미지정')}</div></div><div class="r num">${fmt(a.amount)}</div></li>`).join('')}</ul>`:'<p class="empty">대기 중인 품의가 없습니다.</p>'}</div></div></div>
@@ -572,27 +577,29 @@ const canGoal=t=>t.startsWith('rep:')&&ME.full||(ME.role==='팀장'&&t.startsWit
 const yearOpts=v=>[num(YEAR)-1,num(YEAR),num(YEAR)+1].map(y=>`<option ${String(y)===String(v)?'selected':''}>${y}</option>`).join('');
 function vGoals(){
  const y=F.gYear||YEAR,ms=monthsOf(y),Z=()=>Array(12).fill(0);
- const cells=(g,ed,t)=>`<td class="n ycol" data-l="연간" data-y="1"><b>${fmt(sum(g,x=>x))}</b></td>`+QS.map((q,i)=>`<td class="n qcol" data-l="${i+1}분기" data-q="${i}">${fmt(sum(q,k=>g[k]))}</td>`).join('')+g.map((v,i)=>`<td class="n" data-l="${i+1}월" data-m="${i}">${ed?`<input class="gin" type="number" step="any" min="0" data-goal="${esc(t)}|${i}" value="${v||''}" aria-label="${esc(t)} ${i+1}월 목표">`:`<span data-v="${v}">${fmt(v)}</span>`}</td>`).join('');
- const row=(t,label,kind,team,cls)=>{const g=goalOf(t,y),ed=canGoal(t)&&canWrite;return `<tr class="${cls||''}" data-gt="${esc(t)}" data-kind="${kind}" data-team="${esc(team||'')}" style="cursor:default"><td class="gname" data-l="대상">${label}</td>${cells(g,ed,t)}</tr>`};
- const calcRow=(label,g,kind,team,cls)=>`<tr class="${cls||''}" data-kind="${kind}" data-team="${esc(team||'')}" style="cursor:default"><td class="gname" data-l="대상">${label}</td>${cells(g,false,'')}</tr>`;
+ const actOfRow=(kind,key)=>{const ops=kind==='rep'?D.opps.filter(o=>o.owner===key):kind==='team'?D.opps.filter(o=>teamOf(o.owner)===key):(F.scope?D.opps.filter(o=>teamOf(o.owner)===F.scope):D.opps);return winAgg(ops,ms).act};
+ const remCells=(g,act)=>{const G=sum(g,x=>x);return `<td class="n actcol" data-l="수주 실적" data-act="${act}"><b>${fmt(act)}</b></td><td class="n" data-l="잔여 목표" data-rem="1"><span class="${G-act>0?'gapc':'okc'}">${fmt(G-act)}</span></td><td class="n" data-l="달성률" data-rate="1">${G?pct(act,G)+'%':'-'}</td>`};
+ const cells=(g,ed,t,act)=>`<td class="n ycol" data-l="연간 목표" data-y="1"><b>${fmt(sum(g,x=>x))}</b></td>`+remCells(g,act||0)+QS.map((q,i)=>`<td class="n qcol" data-l="${i+1}분기" data-q="${i}">${fmt(sum(q,k=>g[k]))}</td>`).join('')+g.map((v,i)=>`<td class="n" data-l="${i+1}월" data-m="${i}">${ed?`<input class="gin" type="number" step="any" min="0" data-goal="${esc(t)}|${i}" value="${v||''}" aria-label="${esc(t)} ${i+1}월 목표">`:`<span data-v="${v}">${fmt(v)}</span>`}</td>`).join('');
+ const row=(t,label,kind,team,cls)=>{const g=goalOf(t,y),ed=canGoal(t)&&canWrite;return `<tr class="${cls||''}" data-gt="${esc(t)}" data-kind="${kind}" data-team="${esc(team||'')}" style="cursor:default"><td class="gname" data-l="대상">${label}</td>${cells(g,ed,t,actOfRow('rep',t.slice(4)))}</tr>`};
+ const calcRow=(label,g,kind,team,cls)=>`<tr class="${cls||''}" data-kind="${kind}" data-team="${esc(team||'')}" style="cursor:default"><td class="gname" data-l="대상">${label}</td>${cells(g,false,'',actOfRow(kind,team))}</tr>`;
  const teams=visTeams(),reps=visReps();
  const boss=users().find(u=>u.role==='사업부장');
  let body='';
  if(ME.full){const org=teams.reduce((a,t)=>addArr(a,teamGoal(t.id,y)),Z());
   body+=calcRow(`<b>${esc(orgName())} 사업부 전체</b> <span class="chip red">사업부장 목표</span>${boss?` <span class="s">${esc(boss.name)}</span>`:''}<div class="s">${F.scope?'선택한 팀':'모든 팀'} 목표(=팀원 개인 목표)의 합계 (자동)</div>`,org,'org','','orow')}
  for(const t of teams){const m=reps.filter(u=>u.team===t.id);const rs=m.reduce((a,u)=>addArr(a,goalOf('rep:'+u.name,y)),Z());
-  body+=calcRow(`${teamLabel(t)} <span class="chip ink">팀 목표</span><div class="s">팀원 ${m.length}명 개인 목표 합계 (자동)</div>`,rs,'team',t.id,'trow')+(m.length?m.map(u=>row('rep:'+u.name,`${esc(u.name)} <span class="s">${esc(u.role)}</span>`,'rep',t.id)).join(''):`<tr><td colspan="18" class="s" style="padding-left:16px">팀원(영업대표)이 없습니다. 사용자·권한에서 팀원을 지정하세요.</td></tr>`)}
- const loose=reps.filter(u=>!u.team);if(loose.length)body+=`<tr class="trow"><td colspan="18"><b>팀 미지정</b> <span class="s">사용자·권한에서 팀을 지정하세요</span></td></tr>`+loose.map(u=>row('rep:'+u.name,esc(u.name),'rep','')).join('');
+  body+=calcRow(`${teamLabel(t)} <span class="chip ink">팀 목표</span><div class="s">팀원 ${m.length}명 개인 목표 합계 (자동)</div>`,rs,'team',t.id,'trow')+(m.length?m.map(u=>row('rep:'+u.name,`${esc(u.name)} <span class="s">${esc(u.role)}</span>`,'rep',t.id)).join(''):`<tr><td colspan="21" class="s" style="padding-left:16px">팀원(영업대표)이 없습니다. 사용자·권한에서 팀원을 지정하세요.</td></tr>`)}
+ const loose=reps.filter(u=>!u.team);if(loose.length)body+=`<tr class="trow"><td colspan="21"><b>팀 미지정</b> <span class="s">사용자·권한에서 팀을 지정하세요</span></td></tr>`+loose.map(u=>row('rep:'+u.name,esc(u.name),'rep','')).join('');
  if(!ME.full&&ME.role!=='팀장'&&ME.rep&&!reps.length)body+=row('rep:'+ME.rep,esc(ME.rep),'rep','');
- return head('목표 설정 (팀·개인)',`${esc(y)}년 월별 매출 목표(백만원)를 입력합니다. 개인(영업대표) 목표만 입력하면 팀 목표(팀장 목표)는 팀원 합계로, 사업부 전체는 팀 합계로 자동 계산됩니다. 입력하는 즉시 분기·연간까지 합산되고, 칸을 벗어나면 저장됩니다. 개인 목표는 사업부장과 해당 팀 팀장이 입력합니다.`)+
+ return head('목표 설정 (팀·개인)',`${esc(y)}년 월별 수주 목표(백만원)를 입력합니다. 영업기회가 수주(계약)되면 수주일 기준으로 실적이 잡혀 잔여 목표에서 바로 차감됩니다. 개인(영업대표) 목표만 입력하면 팀 목표(팀장 목표)는 팀원 합계로, 사업부 전체는 팀 합계로 자동 계산됩니다. 입력하는 즉시 분기·연간까지 합산되고, 칸을 벗어나면 저장됩니다. 개인 목표는 사업부장과 해당 팀 팀장이 입력합니다.`)+
  `<div class="filters"><span>연도</span><select data-f="gYear">${yearOpts(y)}</select></div>
- ${body?`<div class="scroll"><table class="gtable" id="gtable"><thead><tr><th>대상</th><th class="n ycol">연간</th>${QS.map((q,i)=>`<th class="n qcol">${i+1}Q</th>`).join('')}${ms.map((m,i)=>`<th class="n">${i+1}월</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요. (시스템 관리 › 조직·팀 설정, 사용자·권한)</p>'}`;
+ ${body?`<div class="scroll"><table class="gtable" id="gtable"><thead><tr><th>대상</th><th class="n ycol">연간 목표</th><th class="n actcol">수주 실적</th><th class="n">잔여 목표</th><th class="n">달성률</th>${QS.map((q,i)=>`<th class="n qcol">${i+1}Q</th>`).join('')}${ms.map((m,i)=>`<th class="n">${i+1}월</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요. (시스템 관리 › 조직·팀 설정, 사용자·권한)</p>'}`;
 }
 /* 목표표 즉시 합산: 입력값 → 분기·연간, 팀원 합계, 사업부 전체 */
 function recalcGoals(){
  const tb=$('#gtable');if(!tb)return;
  const vals=tr=>Array.from({length:12},(_,i)=>{const td=tr.querySelector(`[data-m="${i}"]`);if(!td)return 0;const inp=td.querySelector('input');return inp?num(inp.value):num(td.querySelector('[data-v]')?.dataset.v)});
- const put=(tr,g)=>{g.forEach((v,i)=>{const sp=tr.querySelector(`[data-m="${i}"] [data-v]`);if(sp){sp.dataset.v=v;sp.textContent=fmt(v)}});QS.forEach((q,i)=>{const c=tr.querySelector(`[data-q="${i}"]`);if(c)c.textContent=fmt(sum(q,k=>g[k]))});const yc=tr.querySelector('[data-y]');if(yc)yc.innerHTML=`<b>${fmt(sum(g,x=>x))}</b>`};
+ const put=(tr,g)=>{g.forEach((v,i)=>{const sp=tr.querySelector(`[data-m="${i}"] [data-v]`);if(sp){sp.dataset.v=v;sp.textContent=fmt(v)}});QS.forEach((q,i)=>{const c=tr.querySelector(`[data-q="${i}"]`);if(c)c.textContent=fmt(sum(q,k=>g[k]))});const yc=tr.querySelector('[data-y]');if(yc)yc.innerHTML=`<b>${fmt(sum(g,x=>x))}</b>`;const ac=tr.querySelector('[data-act]');if(ac){const act=num(ac.dataset.act),G=sum(g,x=>x);const rc=tr.querySelector('[data-rem]');if(rc)rc.innerHTML=`<span class="${G-act>0?'gapc':'okc'}">${fmt(G-act)}</span>`;const pc=tr.querySelector('[data-rate]');if(pc)pc.textContent=G?pct(act,G)+'%':'-'}};
  const rows=[...tb.querySelectorAll('tr[data-kind]')],teamTot={},Z=()=>Array(12).fill(0);let org=Z();
  for(const tr of rows)if(tr.dataset.kind==='rep'){const g=vals(tr);put(tr,g);if(tr.dataset.team)teamTot[tr.dataset.team]=addArr(teamTot[tr.dataset.team]||Z(),g)}
  for(const tr of rows)if(tr.dataset.kind==='team'){const g=teamTot[tr.dataset.team]||Z();put(tr,g);org=addArr(org,g)}
@@ -601,20 +608,25 @@ function recalcGoals(){
 function vGoalVs(){
  const y=F.gYear||YEAR,ms=monthsOf(y),P=F.gvP||'m';
  const cm=num(MONTH.slice(5))-1,sel=F.gvSel!==undefined&&F.gvSel!==''?num(F.gvSel):(P==='m'?(String(y)===YEAR?cm:0):(String(y)===YEAR?Math.floor(cm/3):0));
- const idx=P==='m'?[sel]:QS[sel],pms=idx.map(i=>ms[i]);
+ const idx=P==='m'?[sel]:P==='q'?QS[sel]:[0,1,2,3,4,5,6,7,8,9,10,11],pms=idx.map(i=>ms[i]);
  const ownOpps=name=>D.opps.filter(o=>o.owner===name),teamOpps=id=>D.opps.filter(o=>teamOf(o.owner)===id);
- const line=(label,goal,opps,cls)=>{const g=sum(idx,i=>goal[i]),a=revAgg(opps,pms);return `<tr class="${cls||''}" style="cursor:default"><td data-l="대상">${label}</td><td class="n" data-l="목표">${fmt(g)}</td><td class="n" data-l="매출 실적"><b>${fmt(a.act)}</b></td><td class="n" data-l="달성률">${g?`<span class="${a.act>=g?'okc':''}">${pct(a.act,g)}%</span>`:'-'}</td><td class="n" data-l="확정(미발행)">${fmt(a.plan)}</td><td class="n" data-l="가중 예상">${fmt(a.wt)}</td><td class="n" data-l="전망">${fmt(a.fc)}</td><td class="n" data-l="전망 달성률">${g?pct(a.fc,g)+'%':'-'}</td><td class="n" data-l="Gap">${g?`<span class="${g-a.fc>0?'gapc':'okc'}">${fmt(g-a.fc)}</span>`:'-'}</td></tr>`};
+ const line=(label,goal,opps,cls)=>{const g=sum(idx,i=>goal[i]),a=winAgg(opps,pms),rem=g-a.act;return `<tr class="${cls||''}" style="cursor:default"><td data-l="대상">${label}</td><td class="n" data-l="목표">${fmt(g)}</td><td class="n" data-l="수주 실적"><b>${fmt(a.act)}</b></td><td class="n" data-l="잔여 목표">${g?`<span class="${rem>0?'gapc':'okc'}">${rem>0?fmt(rem):'달성 (+'+fmt(-rem)+')'}</span>`:'-'}</td><td class="n" data-l="달성률">${g?`<div class="bar thin" style="width:56px;display:inline-block;vertical-align:middle"><i style="width:${Math.min(100,pct(a.act,g))}%;background:${a.act>=g?'var(--ok)':'var(--red)'}"></i></div> <span class="${a.act>=g?'okc':''}">${pct(a.act,g)}%</span>`:'-'}</td><td class="n" data-l="진행 가중 예상">${fmt(a.wt)}</td><td class="n" data-l="전망">${fmt(a.fc)}</td><td class="n" data-l="전망 달성률">${g?pct(a.fc,g)+'%':'-'}</td></tr>`};
  const teams=visTeams(),reps=visReps();let body='';
  if(ME.full)body+=line('<b>'+esc(orgName())+' 사업부 전체</b> <span class="chip red">사업부장 목표</span>',scopeGoal(y),F.scope?D.opps.filter(o=>teamOf(o.owner)===F.scope):D.opps,'orow');
  for(const t of teams){body+=line(teamLabel(t),teamGoal(t.id,y),teamOpps(t.id),'trow')+reps.filter(u=>u.team===t.id).map(u=>line(esc(u.name),goalOf('rep:'+u.name,y),ownOpps(u.name))).join('')}
  if(!teams.length&&ME.rep)body+=line(esc(ME.rep),goalOf('rep:'+ME.rep,y),ownOpps(ME.rep));
- const G=scopeGoal(y),mon=ms.map((m,i)=>({i,m,g:G[i],...revAgg(D.opps,[m])})),mx=Math.max(1,...mon.map(x=>Math.max(x.g,x.act+x.plan+x.wt)));
- const selOpts=P==='m'?ms.map((m,i)=>`<option value="${i}" ${i===sel?'selected':''}>${i+1}월</option>`).join(''):QS.map((q,i)=>`<option value="${i}" ${i===sel?'selected':''}>${i+1}분기</option>`).join('');
- return head('목표 대비 매출 실적','매출 실적은 수주 건의 매출 인식 계획 중 세금계산서가 발행된 금액입니다. 확정(미발행)은 수주했지만 아직 발행 전인 금액, 가중 예상은 진행 중 기회의 매출계획 × 확도입니다.')+
- `<div class="filters"><span>연도</span><select data-f="gYear">${yearOpts(y)}</select><div class="seg"><button data-set="gvP=m" class="${P==='m'?'on':''}">월별</button><button data-set="gvP=q" class="${P==='q'?'on':''}">분기별</button></div><select data-f="gvSel">${selOpts}</select></div>
- <div class="kpis">${(()=>{const g=sum(idx,i=>G[i]),a=revAgg(D.opps,pms);return kpi('목표',fmt(g),'백만원')+kpi('매출 실적',fmt(a.act),'백만원')+kpi('달성률',g?pct(a.act,g):'-',g?'%':'')+kpi('전망',fmt(a.fc),'백만원')+kpi('Gap (목표−전망)',g?fmt(g-a.fc):'-','백만원',g&&g-a.fc>0?'alert':'')})()}</div>
- <div class="sec" style="margin-bottom:28px">${body?`<div class="scroll"><table class="stack"><thead><tr><th>대상</th><th class="n">목표</th><th class="n">매출 실적</th><th class="n">달성률</th><th class="n">확정(미발행)</th><th class="n">가중 예상</th><th class="n">전망</th><th class="n">전망 달성률</th><th class="n">Gap</th></tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요.</p>'}</div>
- <div class="sec"><h2>${esc(y)}년 월별 목표 대비 (${ME.full?(F.scope?esc(teamName(F.scope)):esc(orgName())+' 전체'):ME.role==='팀장'?esc(teamName(ME.team)):'내 실적'})</h2><div class="mchart">${mon.map(x=>`<div class="mc ${x.m===MONTH?'cur':''}"><div class="mcb"><i class="a" style="height:${x.act/mx*100}%"></i><i class="p" style="height:${x.plan/mx*100}%"></i><i class="w" style="height:${x.wt/mx*100}%"></i>${x.g?`<b class="gl" style="bottom:${x.g/mx*100}%"></b>`:''}</div><span>${x.i+1}월</span><small>${x.g?pct(x.act,x.g)+'%':''}</small></div>`).join('')}</div><div class="legend"><span><i style="background:var(--red)"></i>매출 실적</span><span><i style="background:color-mix(in srgb,var(--red) 50%,transparent)"></i>확정(미발행)</span><span><i style="background:color-mix(in srgb,var(--ink) 22%,transparent)"></i>가중 예상</span><span><i style="background:var(--ink);height:3px;vertical-align:3px"></i>목표</span></div></div>`;
+ const scopeOpps=ME.full?(F.scope?D.opps.filter(o=>teamOf(o.owner)===F.scope):D.opps):D.opps;
+ const G=scopeGoal(y);let cum=0,cumG=0;const mon=ms.map((m,i)=>{const a=winAgg(scopeOpps,[m]);cum+=a.act;cumG+=G[i];return{i,m,g:G[i],...a,cum,cumG}}),mx=Math.max(1,...mon.map(x=>Math.max(x.g,x.act+x.wt)));
+ const selOpts=P==='m'?ms.map((m,i)=>`<option value="${i}" ${i===sel?'selected':''}>${i+1}월</option>`).join(''):P==='q'?QS.map((q,i)=>`<option value="${i}" ${i===sel?'selected':''}>${i+1}분기</option>`).join(''):'';
+ const recent=scopeOpps.filter(o=>o.stage==='수주'&&String(wonMonth(o)).startsWith(String(y))).sort((a,b)=>String(b.wonDate||b.closeDate)>String(a.wonDate||a.closeDate)?1:-1).slice(0,8);
+ const g0=sum(idx,i=>G[i]),a0=winAgg(scopeOpps,pms);
+ return head('목표 대비 수주 실적','영업기회가 수주(계약)되면 수주일 기준으로 실적이 잡히고 목표에서 바로 차감됩니다. 진행 가중 예상은 진행 중 기회(예상 수주일 기준) × 확도이고, 전망 = 수주 실적 + 진행 가중 예상입니다.')+
+ `<div class="filters"><span>연도</span><select data-f="gYear">${yearOpts(y)}</select><div class="seg"><button data-set="gvP=m" class="${P==='m'?'on':''}">월별</button><button data-set="gvP=q" class="${P==='q'?'on':''}">분기별</button><button data-set="gvP=y" class="${P==='y'?'on':''}">연간</button></div>${selOpts?`<select data-f="gvSel">${selOpts}</select>`:''}</div>
+ <div class="kpis">${kpi('목표',fmt(g0),'백만원')}${kpi('수주 실적',fmt(a0.act),'백만원')}${kpi('잔여 목표',g0?fmt(Math.max(0,g0-a0.act)):'-','백만원',g0&&g0-a0.act>0?'alert':'')}${kpi('달성률',g0?pct(a0.act,g0):'-',g0?'%':'')}${kpi('전망 (실적+가중)',fmt(a0.fc),'백만원 · '+(g0?pct(a0.fc,g0)+'%':'-'))}</div>
+ <div class="sec" style="margin-bottom:28px">${body?`<div class="scroll"><table class="stack"><thead><tr><th>대상</th><th class="n">목표</th><th class="n">수주 실적</th><th class="n">잔여 목표</th><th class="n">달성률</th><th class="n">진행 가중 예상</th><th class="n">전망</th><th class="n">전망 달성률</th></tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요.</p>'}</div>
+ <div class="grid2"><div class="sec"><h2>${esc(y)}년 월별 목표 대비 수주 (${ME.full?(F.scope?esc(teamName(F.scope)):esc(orgName())+' 전체'):ME.role==='팀장'?esc(teamName(ME.team)):'내 실적'})</h2><div class="mchart">${mon.map(x=>`<div class="mc ${x.m===MONTH?'cur':''}"><div class="mcb"><i class="a" style="height:${x.act/mx*100}%"></i><i class="w" style="height:${x.wt/mx*100}%"></i>${x.g?`<b class="gl" style="bottom:${x.g/mx*100}%"></b>`:''}</div><span>${x.i+1}월</span><small>${x.g?pct(x.act,x.g)+'%':''}</small></div>`).join('')}</div><div class="legend"><span><i style="background:var(--red)"></i>수주 실적</span><span><i style="background:color-mix(in srgb,var(--ink) 22%,transparent)"></i>진행 가중 예상</span><span><i style="background:var(--ink);height:3px;vertical-align:3px"></i>월 목표</span></div>
+ <p class="s">누적: 목표 ${fmt(cumG)} 중 수주 ${fmt(cum)} (${cumG?pct(cum,cumG):0}%)</p></div>
+ <div class="sec"><h2>최근 수주 (실적 반영)</h2>${recent.length?`<ul class="list">${recent.map(o=>`<li data-edit="opps:${esc(o.id)}"><div><div class="t">${o.code?`<span class="code">${esc(o.code)}</span> `:''}${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner)} · ${esc(o.wonDate||o.closeDate||'')}</div></div><div class="r"><b class="num">${fmt(o.amount)}</b></div></li>`).join('')}</ul>`:'<p class="empty">올해 수주한 영업기회가 없습니다.</p>'}</div></div>`;
 }
 const commitOf=(t,m)=>COMMITS.find(c=>c.target===t&&c.month===m);
 const canCommit=t=>canWrite&&(ME.full||(t==='rep:'+ME.rep)||(ME.role==='팀장'&&!!ME.team&&(t==='team:'+ME.team||(t.startsWith('rep:')&&teamOf(t.slice(4))===ME.team))));
@@ -622,17 +634,17 @@ function vForecast(){
  const m=F.fcM||MONTH,y=m.slice(0,4),mi=num(m.slice(5))-1;
  const mopts=[-1,0,1,2,3].map(k=>ymd(new Date(NOW.getFullYear(),NOW.getMonth()+k,1)).slice(0,7));
  const cin=(t,c)=>canCommit(t)?`<input class="gin" type="number" step="any" data-commit="${esc(t)}" value="${c?.amount??''}" placeholder="입력" aria-label="커밋 금액">`:(c?fmt(c.amount):'<span class="s">미제출</span>');
- const line=(t,label,opps,goal,cls)=>{const a=revAgg(opps,[m]),c=commitOf(t,m);return `<tr class="${cls||''}" style="cursor:default"><td data-l="대상">${label}</td><td class="n" data-l="확정">${fmt(a.act+a.plan)}</td><td class="n" data-l="유력">${fmt(a.best)}</td><td class="n" data-l="가중 예상">${fmt(a.wt)}</td><td class="n" data-l="커밋">${cin(t,c)}</td><td class="n" data-l="목표">${fmt(goal)}</td><td class="n" data-l="Gap">${goal&&c?`<span class="${goal-num(c.amount)>0?'gapc':'okc'}">${fmt(goal-num(c.amount))}</span>`:'-'}</td><td data-l="제출">${c?`<span class="s">${esc(c.by||'')} ${esc(c.at||'')}</span>`:''}</td></tr>`};
+ const line=(t,label,opps,goal,cls)=>{const a=winAgg(opps,[m]),c=commitOf(t,m);return `<tr class="${cls||''}" style="cursor:default"><td data-l="대상">${label}</td><td class="n" data-l="수주 확정">${fmt(a.act)}</td><td class="n" data-l="유력">${fmt(a.best)}</td><td class="n" data-l="가중 예상">${fmt(a.wt)}</td><td class="n" data-l="커밋">${cin(t,c)}</td><td class="n" data-l="목표">${fmt(goal)}</td><td class="n" data-l="Gap">${goal&&c?`<span class="${goal-num(c.amount)>0?'gapc':'okc'}">${fmt(goal-num(c.amount))}</span>`:'-'}</td><td data-l="제출">${c?`<span class="s">${esc(c.by||'')} ${esc(c.at||'')}</span>`:''}</td></tr>`};
  const teams=visTeams(),reps=visReps();let body='';
  for(const t of teams){const mem=reps.filter(u=>u.team===t.id);const sumC=sum(mem,u=>num(commitOf('rep:'+u.name,m)?.amount));
   body+=mem.map(u=>line('rep:'+u.name,esc(u.name),D.opps.filter(o=>o.owner===u.name),goalOf('rep:'+u.name,y)[mi])).join('')+
   line('team:'+t.id,`${teamLabel(t)} <span class="s">· 팀원 커밋 합 ${fmt(sumC)} → 팀장 조정</span>`,D.opps.filter(o=>teamOf(o.owner)===t.id),teamGoal(t.id,y)[mi],'trow')}
  if(!teams.length&&ME.rep)body+=line('rep:'+ME.rep,esc(ME.rep),D.opps.filter(o=>o.owner===ME.rep),goalOf('rep:'+ME.rep,y)[mi]);
  const tg=scopeGoal(y)[mi],tc=sum(teams,t=>num(commitOf('team:'+t.id,m)?.amount));
- return head('Forecast 커밋','영업대표가 월별 매출 예상 금액을 제출(커밋)하고, 팀장이 팀 단위로 조정합니다. 시스템 값은 참고용입니다: 확정 = 수주 건 매출계획, 유력 = 확도 70% 이상 진행 건, 가중 예상 = 진행 건 × 확도.')+
+ return head('Forecast 커밋','영업대표가 월별 예상 수주 금액을 제출(커밋)하고, 팀장이 팀 단위로 조정합니다. 시스템 값은 참고용입니다: 수주 확정 = 그 달 수주(계약)된 금액, 유력 = 그 달 수주 예정인 확도 70% 이상 건, 가중 예상 = 그 달 수주 예정 건 × 확도.')+
  `<div class="filters"><span>대상 월</span><select data-f="fcM">${mopts.map(x=>`<option ${x===m?'selected':''}>${x}</option>`).join('')}</select></div>
- ${ME.full?`<div class="kpis">${kpi('팀장 조정 커밋 합',fmt(tc),'백만원')}${kpi('목표',fmt(tg),'백만원')}${kpi('Gap',tg?fmt(tg-tc):'-','백만원',tg&&tg-tc>0?'alert':'')}${kpi('시스템 전망',fmt(revAgg(D.opps,[m]).fc),'백만원')}</div>`:''}
- ${body?`<div class="scroll"><table class="stack"><thead><tr><th>대상</th><th class="n">확정</th><th class="n">유력</th><th class="n">가중 예상</th><th class="n">커밋 (제출)</th><th class="n">목표</th><th class="n">Gap</th><th>제출</th></tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요.</p>'}
+ ${ME.full?`<div class="kpis">${kpi('팀장 조정 커밋 합',fmt(tc),'백만원')}${kpi('목표',fmt(tg),'백만원')}${kpi('Gap',tg?fmt(tg-tc):'-','백만원',tg&&tg-tc>0?'alert':'')}${kpi('시스템 전망',fmt(winAgg(D.opps,[m]).fc),'백만원')}</div>`:''}
+ ${body?`<div class="scroll"><table class="stack"><thead><tr><th>대상</th><th class="n">수주 확정</th><th class="n">유력</th><th class="n">가중 예상</th><th class="n">커밋 (제출)</th><th class="n">목표</th><th class="n">Gap</th><th>제출</th></tr></thead><tbody>${body}</tbody></table></div>`:'<p class="empty">팀과 사용자를 먼저 설정해 주세요.</p>'}
  <p class="note">입력칸을 벗어나면 바로 저장됩니다. 영업대표는 본인 커밋만, 팀장은 팀원과 팀 조정 커밋을, 사업부장은 전체를 입력할 수 있습니다.</p>`;
 }
 function vItems(){
@@ -844,6 +856,7 @@ async function save(e){
  const old=M.id?RAW[M.col].find(x=>x.id===M.id):null;const{id:_i,...rest}=old||{};
  const body={...rest,...o,updatedAt:Date.now()};if(!old)body.createdAt=Date.now();
  if(M.col==='opps'&&!body.code)body.code=nextCode();
+ if(M.col==='opps'&&body.stage==='수주'&&!body.wonDate)body.wonDate=TODAY;
  if(M.col==='approvals'&&(old?.status!==o.status)&&['승인','반려'].includes(o.status)){if(!canApprove(body)){err.textContent='승인·반려는 지정된 결재자만 할 수 있습니다.';return}body.decidedAt=TODAY}
  if(M.col==='approvals'&&M.draft){body.items=M.draft.items||[];if(M.draft.labor&&M.draft.labor.people?.length)body.labor=M.draft.labor;else delete body.labor}
  if(!db){err.textContent='저장소에 연결되지 않았습니다.';return}
@@ -855,11 +868,11 @@ async function save(e){
   if(M.col==='opps'&&body.customer&&!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact||'',owner:body.owner||'',createdAt:Date.now(),updatedAt:Date.now()});
   const cb=M.onSaved;closeM();if(cb)await cb(ref.id)}catch(x){err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
 }
-async function winFromAppr(a){const o=RAW.opps.find(x=>x.id===a.oppId);if(!o)return;const{id,...r}=o;const patch={stage:'수주',closeDate:o.closeDate||TODAY,wonBy:a.kind,updatedAt:Date.now()};
+async function winFromAppr(a){const o=RAW.opps.find(x=>x.id===a.oppId);if(!o)return;const{id,...r}=o;const patch={stage:'수주',closeDate:o.closeDate||TODAY,wonDate:o.wonDate||TODAY,wonBy:a.kind,updatedAt:Date.now()};
  const t=ctTotals(a);if(t.has){if(itemsOf(a).length)patch.items=clone(a.items);if(a.labor&&a.labor.people?.length)patch.labor=clone(a.labor);patch.amtSW=t.sw||null;patch.amtHW=t.hw||null;patch.amtSvc=t.svc||null;patch.cost=Math.round((t.buy+t.lcost)*100)/100;patch.amount=Math.round((t.sw+t.hw+t.svc+num(o.amtMA))*100)/100}
  else if(num(a.amount)){patch.amount=num(a.amount);if(!blank(a.cost))patch.cost=num(a.cost)}
  await db.collection('opps').doc(id).set({...r,...patch})}
-async function setStage(id,stage){const o=RAW.opps.find(x=>x.id===id);if(o&&o.stage!==stage){const{id:_,...r}=o;await db.collection('opps').doc(id).set({...r,stage,closeDate:stage==='수주'?(o.closeDate||TODAY):o.closeDate,updatedAt:Date.now()})}}
+async function setStage(id,stage){const o=RAW.opps.find(x=>x.id===id);if(o&&o.stage!==stage){const{id:_,...r}=o;await db.collection('opps').doc(id).set({...r,stage,closeDate:stage==='수주'?(o.closeDate||TODAY):o.closeDate,wonDate:stage==='수주'?(o.wonDate||TODAY):(o.wonDate||null),updatedAt:Date.now()})}}
 const closeM=()=>{$('#modal').innerHTML='';M=null};
 const ctObj=()=>M?(M.col==='approvals'?M.draft:RAW.opps.find(x=>x.id===M.id)):null;
 async function ctSave(o,patch,sec,fn){if(M&&M.col==='approvals'){Object.assign(M.draft,clone(patch));refreshSec(sec,fn(M.draft));syncAppr();return}return saveOpp(o,patch,sec,fn)}
