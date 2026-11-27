@@ -254,6 +254,8 @@ const stageMissing=(o,st)=>(STAGES.find(s=>s.k===st)?.req||[]).filter(k=>k==='am
 const COMPS=[['amtSW','SW 라이선스'],['amtHW','HW'],['amtSvc','용역(M/M)'],['amtMA','유지보수']];
 const LOST_REASONS=['가격','기술/기능 부족','고객 관계','경쟁사 선호','예산 취소/보류','일정','기타'];
 const WIN_KINDS=['수주품의','실행/판매품의','계약'];
+const CT_KINDS=['원가산정','수주품의','실행/판매품의','계약'];
+const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
 const KINDS={'p-cost':'원가산정','p-order':'수주품의','p-exec':'실행/판매품의','p-demo':'검수조건부/Demo','p-contract':'계약','p-purchase':'구매요청','p-direct':'판매직접비'};
 const ROLES_L=['영업대표','팀장','사업부장'];
 const normRole=r=>r==='본부장'?'사업부장':(ROLES_L.includes(r)?r:'영업대표');
@@ -783,7 +785,7 @@ function loadOpp(fill){
  if(!o||!fill)return;
  const set=(k,v,force)=>{const el=$('#f_'+k);if(el&&!blank(v)&&(force||!el.value))el.value=v};
  set('customer',o.customer,true);set('owner',o.owner);set('requester',o.owner);
- if(M.col==='approvals'){set('amount',o.amount);set('cost',o.cost);set('title',oppLabel(o).replace(' · ',' '))}
+ if(M.col==='approvals'){set('amount',o.amount);set('cost',o.cost);set('title',oppLabel(o).replace(' · ',' '));if(M.draft&&!ctTotals(M.draft).has&&ctTotals(o).has){M.draft={items:clone(itemsOf(o)),labor:o.labor?clone(o.labor):null};refreshSec('itemsec',itemsHTML(M.draft));refreshSec('laborsec',laborHTML(M.draft));syncAppr()}}
  calc();
 }
 const ITEM_KINDS=['SW','HW','클라우드','기타'];
@@ -804,7 +806,7 @@ const laborHTML=o=>{const L=laborOf(o),ed=canWrite,{mm,cost,sell,ms}=laborTot(L)
  ${ed?`<div class="qadd"><span class="s" style="align-self:center">계약 기간</span><input type="month" id="lb_start" value="${esc(L.start)}" aria-label="시작월" style="flex:0 1 10em"><input type="number" id="lb_n" value="${esc(L.n)}" min="1" max="36" aria-label="개월 수" style="flex:0 1 5em"><span class="s" style="align-self:center">개월</span><button type="button" class="btn sm" data-lbperiod="1">기간 적용</button></div>`:''}
  ${L.people.length?`<div class="scroll"><table class="qtable lbt"><thead><tr><th>인력</th><th>항목</th>${ms.map(m=>`<th class="n">${esc(m.slice(2).replace('-','.'))}</th>`).join('')}<th class="n">합계</th></tr></thead><tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>`:'<p class="empty" style="padding:4px 0">등록된 인력이 없습니다. 인건비(용역) 계약이면 아래에서 인력을 추가하세요.</p>'}
  ${ed?`<div class="qadd"><input id="lb_name" placeholder="인력 이름" aria-label="인력 이름"><input id="lb_grade" placeholder="등급·역할 (예: 고급 개발자)" aria-label="등급"><input type="number" step="any" id="lb_mm" placeholder="월 공수 (예: 1)" aria-label="월 공수" style="flex:0 1 7em"><input type="number" step="any" id="lb_cost" placeholder="월 원가" aria-label="월 원가" style="flex:0 1 7em"><input type="number" step="any" id="lb_sell" placeholder="월 매출" aria-label="월 매출" style="flex:0 1 7em"><button type="button" class="btn sm" data-lbadd="1">인력 추가 (기간 전체에 채움)</button></div>
- <div class="qadd"><button type="button" class="btn sm" data-applyct="1">①②의 합계를 위쪽 매출 구성·원가에 반영</button><button type="button" class="btn sm" data-lbrev="1">인건비 월별 매출을 매출 인식 계획으로 만들기</button><span class="ok" id="ctMsg"></span></div>`:''}`};
+ <div class="qadd"><button type="button" class="btn sm" data-applyct="1">${M&&M.col==='approvals'?'①②의 합계를 품의 금액·원가에 반영':'①②의 합계를 위쪽 매출 구성·원가에 반영'}</button>${M&&M.col==='approvals'?'':'<button type="button" class="btn sm" data-lbrev="1">인건비 월별 매출을 매출 인식 계획으로 만들기</button>'}<span class="ok" id="ctMsg"></span></div>`:''}`};
 const revHTML=o=>{const rv=Array.isArray(o.rev)?o.rev:[];const tot=sum(rv,r=>num(r.amount)),diff=num(o.amount)-tot,ed=canWrite;
  return `<h2 style="font-size:16px">매출 인식 계획 · 수금 <span class="s" style="font-weight:400">· 계획 합계 ${fmt(tot)} / 매출 합계 ${fmt(o.amount)}${rv.length&&Math.abs(diff)>0.001?` <span style="color:var(--red)">(차이 ${fmt(diff)})</span>`:''}</span></h2>
  ${rv.length?`<div class="scroll"><table class="qtable rvt"><thead><tr><th>회차</th><th>매출월</th><th class="n">금액</th><th>세금계산서 발행일</th><th>수금 예정일</th><th class="n">수금액</th><th>수금일</th><th></th></tr></thead><tbody>${rv.map((r,i)=>`<tr style="cursor:default"><td>${esc(r.label||'')}</td><td>${esc(r.month)}</td><td class="n">${fmt(r.amount)}</td>${ed?`<td><input type="date" data-rv="${i}:invoiceDate" value="${esc(r.invoiceDate||'')}" aria-label="발행일"></td><td><input type="date" data-rv="${i}:dueDate" value="${esc(r.dueDate||'')}" aria-label="수금 예정일"></td><td class="n"><input type="number" step="any" data-rv="${i}:collected" value="${esc(r.collected??'')}" style="width:6em" aria-label="수금액"></td><td><input type="date" data-rv="${i}:collectedDate" value="${esc(r.collectedDate||'')}" aria-label="수금일"></td><td><button type="button" class="btn xs" data-rvdel="${i}" aria-label="회차 삭제">✕</button></td>`:`<td>${esc(r.invoiceDate||'-')}</td><td>${esc(r.dueDate||'-')}</td><td class="n">${fmt(r.collected)}</td><td>${esc(r.collectedDate||'-')}</td><td></td>`}</tr>`).join('')}</tbody></table></div>`:`<p class="empty" style="padding:4px 0">매출 인식 계획이 없습니다. 없으면 예상 수주월(${esc(o.closeDate?String(o.closeDate).slice(0,7):'미정')})에 전액 잡힙니다.</p>`}
@@ -815,11 +817,13 @@ function openForm(col,id,prefill,banner){
  const s=SCHEMA[col],o=id?RAW[col].find(x=>x.id===id):null;if(id&&!o)return;
  M={col,id,del:false,onSaved:null};
  let linked='';
+ if(col==='approvals'){M.draft={items:clone(itemsOf(o||{})),labor:o&&o.labor&&Array.isArray(o.labor.people)?clone(o.labor):null};linked=`<div id="ctwrap"><div class="linked"><p class="s" style="margin:0">품의 내용(계약 상세)입니다. 입력하면 위의 금액·원가가 자동 계산되고, [저장]을 눌러야 품의와 함께 저장됩니다. ${WIN_KINDS.join('·')}가 승인되면 이 내용이 영업기회의 계약 상세로 반영되고 단계가 수주(계약)로 바뀝니다.</p></div><div class="linked" id="itemsec">${itemsHTML(M.draft)}</div><div class="linked" id="laborsec">${laborHTML(M.draft)}</div>${canWrite?'<div class="pfoot"><button class="btn pri" type="submit">품의 저장</button></div>':''}</div>`}
  if(col==='opps'&&o){const acts=D.activities.filter(a=>a.oppId===o.id).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1),aps=D.approvals.filter(a=>a.oppId===o.id);
   linked=`<div class="linked" id="itemsec">${itemsHTML(o)}</div><div class="linked" id="laborsec">${laborHTML(o)}</div><div class="linked" id="revsec">${revHTML(o)}</div><div class="linked" id="quotes">${quotesHTML(o)}</div><div class="linked"><h2 style="font-size:16px">이 기회번호에 연결된 기록 · 활동 ${acts.length} · 품의 ${aps.length}</h2><ul class="list">${acts.slice(0,6).map(a=>`<li data-edit="activities:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.type)} · ${esc(a.owner)}</div></div><div class="r">${esc(a.date)}</div></li>`).join('')}${aps.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)}</div></div><div class="r">${statChip(a.status)}</div></li>`).join('')}</ul></div>`}
  const ro=!canWrite,src=o||prefill||{};
  $('#modal').innerHTML=`<div class="ov" data-close="1"><form class="panel" id="frm" novalidate><h2><span>${col==='opps'&&o?.code?`<span class="code" style="font-size:15px;vertical-align:3px">${esc(o.code)}</span> `:''}${esc(s.name)} ${o?'수정':'등록'}${col==='opps'&&!o?' <span class="s" style="font-size:14px">· 저장하면 기회번호가 부여됩니다</span>':''}</span><button type="button" class="btn sm" data-close="1">닫기</button></h2><div class="form">${banner?`<div class="fbanner">${banner}</div>`:''}${o&&col==='opps'&&o.stage==='실주'?`<div class="fbanner">실주 처리된 기회입니다. 사유: ${esc(o.lost?.reason||'미입력')} <button type="button" class="btn xs" data-lost="${esc(o.id)}">실주 정보 보기</button></div>`:''}${s.fields.map(f=>field(f,f.k?src[f.k]:undefined)).join('')}<div class="calc" id="calc" ${['opps','approvals'].includes(col)?'':'hidden'}></div></div><div class="pfoot">${ro?'<span class="s">보기 전용 권한입니다.</span>':`<button class="btn pri" type="submit">저장</button>${o?'<button class="btn" type="button" id="delBtn">삭제</button>':''}`}<span class="err" id="ferr"></span><span class="sp"></span>${o&&col==='opps'&&!ro?`<button class="btn" type="button" data-new="activities" data-opp="${esc(o.id)}">+ 활동 기록</button><button class="btn" type="button" data-new="approvals" data-opp="${esc(o.id)}">+ 품의 작성</button>`:''}</div>${linked}</form></div>`;
  if(ro)$('#frm').querySelectorAll('input,select,textarea').forEach(e=>e.disabled=true);
+ if(col==='approvals')ctVisible();
  if($('#f_oppQ'))loadOpp(false);
  calc();const first=$('#frm input:not([type=hidden]):not([readonly]),#frm select');if(first&&!ro)first.focus();
 }
@@ -842,17 +846,27 @@ async function save(e){
  const body={...rest,...o,updatedAt:Date.now()};if(!old)body.createdAt=Date.now();
  if(M.col==='opps'&&!body.code)body.code=nextCode();
  if(M.col==='approvals'&&(old?.status!==o.status)&&['승인','반려'].includes(o.status)){if(!canApprove(body)){err.textContent='승인·반려는 지정된 결재자만 할 수 있습니다.';return}body.decidedAt=TODAY}
+ if(M.col==='approvals'&&M.draft){body.items=M.draft.items||[];if(M.draft.labor&&M.draft.labor.people?.length)body.labor=M.draft.labor;else delete body.labor}
  if(!db){err.textContent='저장소에 연결되지 않았습니다.';return}
  const ref=M.id?db.collection(M.col).doc(M.id):db.collection(M.col).doc();
  if(M.col==='opps'&&o.stage==='실주'&&(!old||old.stage!=='실주')){const cb=M.onSaved;openLost(null,body,ref.id,cb);return}
  try{await ref.set(body);
-  if(M.col==='approvals'&&WIN_KINDS.includes(o.kind)&&o.status==='승인'&&o.oppId)await setStage(o.oppId,'수주');
+  if(M.col==='approvals'&&WIN_KINDS.includes(o.kind)&&o.status==='승인'&&o.oppId)await winFromAppr(body);
   if(M.col==='activities'&&o.stageTo&&o.oppId)await setStage(o.oppId,o.stageTo);
   if(M.col==='opps'&&body.customer&&!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact||'',owner:body.owner||'',createdAt:Date.now(),updatedAt:Date.now()});
   const cb=M.onSaved;closeM();if(cb)await cb(ref.id)}catch(x){err.textContent=x?.code==='quota_exceeded'?'저장 공간이 가득 찼습니다. 오래된 데이터를 정리해 주세요.':x?.code==='invalid_argument'?'저장 권한이 없거나 입력값이 올바르지 않습니다.':'저장하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
 }
+async function winFromAppr(a){const o=RAW.opps.find(x=>x.id===a.oppId);if(!o)return;const{id,...r}=o;const patch={stage:'수주',closeDate:o.closeDate||TODAY,wonBy:a.kind,updatedAt:Date.now()};
+ const t=ctTotals(a);if(t.has){if(itemsOf(a).length)patch.items=clone(a.items);if(a.labor&&a.labor.people?.length)patch.labor=clone(a.labor);patch.amtSW=t.sw||null;patch.amtHW=t.hw||null;patch.amtSvc=t.svc||null;patch.cost=Math.round((t.buy+t.lcost)*100)/100;patch.amount=Math.round((t.sw+t.hw+t.svc+num(o.amtMA))*100)/100}
+ else if(num(a.amount)){patch.amount=num(a.amount);if(!blank(a.cost))patch.cost=num(a.cost)}
+ await db.collection('opps').doc(id).set({...r,...patch})}
 async function setStage(id,stage){const o=RAW.opps.find(x=>x.id===id);if(o&&o.stage!==stage){const{id:_,...r}=o;await db.collection('opps').doc(id).set({...r,stage,closeDate:stage==='수주'?(o.closeDate||TODAY):o.closeDate,updatedAt:Date.now()})}}
 const closeM=()=>{$('#modal').innerHTML='';M=null};
+const ctObj=()=>M?(M.col==='approvals'?M.draft:RAW.opps.find(x=>x.id===M.id)):null;
+async function ctSave(o,patch,sec,fn){if(M&&M.col==='approvals'){Object.assign(M.draft,clone(patch));refreshSec(sec,fn(M.draft));syncAppr();return}return saveOpp(o,patch,sec,fn)}
+function ctTotals(o){const it=itemsOf(o),L=laborOf(o),lt=laborTot(L),by=k=>sum(it.filter(x=>x.kind===k),x=>num(x.sell));return{sw:by('SW')+by('클라우드')+by('기타'),hw:by('HW'),svc:lt.sell,buy:sum(it,x=>num(x.buy)),sell:sum(it,x=>num(x.sell)),lcost:lt.cost,has:it.length>0||L.people.length>0}}
+function syncAppr(){if(!M||M.col!=='approvals'||!M.draft)return;const t=ctTotals(M.draft);if(!t.has)return;const a=$('#f_amount'),c=$('#f_cost');if(a)a.value=Math.round((t.sell+t.svc)*100)/100;if(c)c.value=Math.round((t.buy+t.lcost)*100)/100;calc()}
+function ctVisible(){const w=$('#ctwrap');if(w)w.hidden=!CT_KINDS.includes($('#f_kind')?.value)}
 function refreshSec(id,html){const el=$('#'+id);if(!el)return;const a=document.activeElement,k=a&&a.dataset?(a.dataset.lb?['lb',a.dataset.lb]:a.dataset.it?['it',a.dataset.it]:null):null;el.innerHTML=html;if(k){const n=el.querySelector(`[data-${k[0]}="${k[1]}"]`);if(n){n.focus();try{n.select()}catch(e){}}}}
 async function saveOpp(o,patch,sec,fn){const{id,...r}=o;const nx={...o,...patch};try{await db.collection('opps').doc(id).set({...r,...patch,updatedAt:Date.now()});if(sec)refreshSec(sec,fn(nx))}catch(x){const e=$('#ferr');if(e)e.textContent='저장하지 못했습니다.'}}
 async function saveRev(o,rev){const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,rev,updatedAt:Date.now()});const el=$('#revsec');if(el)el.innerHTML=revHTML({...o,rev})}catch(x){const e=$('#ferr');if(e)e.textContent='매출 계획을 저장하지 못했습니다.'}}
@@ -922,16 +936,16 @@ document.addEventListener('click',async e=>{
  if(t.id==='delBtn'){if(!M.del){M.del=true;t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection(M.col).doc(M.id).delete();closeM()}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
  if(t.dataset.lost){openLost(t.dataset.lost);return}
  if(t.dataset.reopen){const o=RAW.opps.find(x=>x.id===t.dataset.reopen);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,stage:OPEN[OPEN.length-1].k,updatedAt:Date.now()});closeM()}catch(x){$('#ferr').textContent='저장하지 못했습니다.'}return}
- if(t.dataset.itadd){const o=RAW.opps.find(x=>x.id===M?.id);const n=$('#it_name').value.trim();if(!o||!n){$('#it_name').focus();return}const nv=k=>{const v=$(k).value;return v===''?null:num(v)};await saveOpp(o,{items:[...itemsOf(o),{kind:$('#it_kind').value,name:n,vendor:$('#it_vendor').value.trim(),qty:nv('#it_qty'),buy:nv('#it_buy'),sell:nv('#it_sell')}]},'itemsec',itemsHTML);$('#it_name')?.focus();return}
- if(t.dataset.itdel){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;await saveOpp(o,{items:itemsOf(o).filter((_,i)=>i!==num(t.dataset.itdel))},'itemsec',itemsHTML);return}
- if(t.dataset.lbperiod){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const L=laborOf(o);await saveOpp(o,{labor:{...L,start:$('#lb_start').value||L.start,n:Math.max(1,Math.min(36,num($('#lb_n').value)||L.n))}},'laborsec',laborHTML);return}
- if(t.dataset.lbadd){const o=RAW.opps.find(x=>x.id===M?.id);const n=$('#lb_name').value.trim();if(!o||!n){$('#lb_name').focus();return}const L=laborOf(o),ms=monthsFrom(L.start,L.n),g=k=>{const v=$(k).value;return v===''?null:num(v)},mm=g('#lb_mm'),cost=g('#lb_cost'),sell=g('#lb_sell'),m={};if(mm!==null||cost!==null||sell!==null)ms.forEach(x=>m[x]={mm,cost,sell});await saveOpp(o,{labor:{...L,people:[...L.people,{name:n,grade:$('#lb_grade').value.trim(),m}]}},'laborsec',laborHTML);$('#lb_name')?.focus();return}
- if(t.dataset.lbdel){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const L=laborOf(o);if(t.dataset.ok!=='1'){t.dataset.ok='1';t.textContent='한 번 더';t.classList.add('red');return}await saveOpp(o,{labor:{...L,people:L.people.filter((_,i)=>i!==num(t.dataset.lbdel))}},'laborsec',laborHTML);return}
- if(t.dataset.applyct){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const it=itemsOf(o),L=laborOf(o),lt=laborTot(L),by=k=>sum(it.filter(x=>x.kind===k),x=>num(x.sell));const set=(k,v)=>{const el=$('#f_'+k);if(el)el.value=v?Math.round(v*100)/100:''};
+ if(t.dataset.itadd){const o=ctObj();const n=$('#it_name').value.trim();if(!o||!n){$('#it_name').focus();return}const nv=k=>{const v=$(k).value;return v===''?null:num(v)};await ctSave(o,{items:[...itemsOf(o),{kind:$('#it_kind').value,name:n,vendor:$('#it_vendor').value.trim(),qty:nv('#it_qty'),buy:nv('#it_buy'),sell:nv('#it_sell')}]},'itemsec',itemsHTML);$('#it_name')?.focus();return}
+ if(t.dataset.itdel){const o=ctObj();if(!o)return;await ctSave(o,{items:itemsOf(o).filter((_,i)=>i!==num(t.dataset.itdel))},'itemsec',itemsHTML);return}
+ if(t.dataset.lbperiod){const o=ctObj();if(!o)return;const L=laborOf(o);await ctSave(o,{labor:{...L,start:$('#lb_start').value||L.start,n:Math.max(1,Math.min(36,num($('#lb_n').value)||L.n))}},'laborsec',laborHTML);return}
+ if(t.dataset.lbadd){const o=ctObj();const n=$('#lb_name').value.trim();if(!o||!n){$('#lb_name').focus();return}const L=laborOf(o),ms=monthsFrom(L.start,L.n),g=k=>{const v=$(k).value;return v===''?null:num(v)},mm=g('#lb_mm'),cost=g('#lb_cost'),sell=g('#lb_sell'),m={};if(mm!==null||cost!==null||sell!==null)ms.forEach(x=>m[x]={mm,cost,sell});await ctSave(o,{labor:{...L,people:[...L.people,{name:n,grade:$('#lb_grade').value.trim(),m}]}},'laborsec',laborHTML);$('#lb_name')?.focus();return}
+ if(t.dataset.lbdel){const o=ctObj();if(!o)return;const L=laborOf(o);if(t.dataset.ok!=='1'){t.dataset.ok='1';t.textContent='한 번 더';t.classList.add('red');return}await ctSave(o,{labor:{...L,people:L.people.filter((_,i)=>i!==num(t.dataset.lbdel))}},'laborsec',laborHTML);return}
+ if(t.dataset.applyct){if(M?.col==='approvals'){syncAppr();$('#ctMsg').textContent='품의 금액·원가에 반영했습니다. [저장]을 눌러 확정하세요.';return}const o=ctObj();if(!o)return;const it=itemsOf(o),L=laborOf(o),lt=laborTot(L),by=k=>sum(it.filter(x=>x.kind===k),x=>num(x.sell));const set=(k,v)=>{const el=$('#f_'+k);if(el)el.value=v?Math.round(v*100)/100:''};
   set('amtSW',by('SW')+by('클라우드')+by('기타'));set('amtHW',by('HW'));set('amtSvc',lt.sell);set('cost',sum(it,x=>num(x.buy))+lt.cost);calc();$('#ctMsg').textContent='반영했습니다. 위의 [저장]을 눌러 확정하세요. (SW·클라우드·기타→SW, HW→HW, 인건비→용역)';$('#f_amtSW')?.scrollIntoView({block:'center'});return}
- if(t.dataset.lbrev){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const L=laborOf(o),ms=monthsFrom(L.start,L.n);const rev=ms.map(m=>({label:'인건비 '+m.slice(5)+'월',month:m,amount:Math.round(sum(L.people,p=>num(p.m?.[m]?.sell))*100)/100})).filter(r=>r.amount);if(!rev.length){$('#ctMsg').textContent='월별 매출이 입력된 인력이 없습니다.';return}
+ if(t.dataset.lbrev){const o=ctObj();if(!o)return;const L=laborOf(o),ms=monthsFrom(L.start,L.n);const rev=ms.map(m=>({label:'인건비 '+m.slice(5)+'월',month:m,amount:Math.round(sum(L.people,p=>num(p.m?.[m]?.sell))*100)/100})).filter(r=>r.amount);if(!rev.length){$('#ctMsg').textContent='월별 매출이 입력된 인력이 없습니다.';return}
   const isLb=r=>String(r.label||'').startsWith('인건비');if((o.rev||[]).some(isLb)&&t.dataset.ok!=='1'){t.dataset.ok='1';t.textContent='한 번 더 누르면 기존 인건비 회차를 교체';t.classList.add('red');return}
-  const keep=(o.rev||[]).filter(r=>!isLb(r));await saveOpp(o,{rev:[...keep,...rev].sort((a,b)=>a.month>b.month?1:-1)},'revsec',revHTML);$('#ctMsg').textContent=`매출 인식 계획 ${rev.length}개 회차를 만들었습니다.`;return}
+  const keep=(o.rev||[]).filter(r=>!isLb(r));await ctSave(o,{rev:[...keep,...rev].sort((a,b)=>a.month>b.month?1:-1)},'revsec',revHTML);$('#ctMsg').textContent=`매출 인식 계획 ${rev.length}개 회차를 만들었습니다.`;return}
  if(t.dataset.rvadd){const o=RAW.opps.find(x=>x.id===M?.id);const amt=$('#rv_amt').value,mo=$('#rv_month').value;if(!o||amt===''||!mo){(amt===''?$('#rv_amt'):$('#rv_month')).focus();return}const rev=[...(Array.isArray(o.rev)?o.rev:[]),{label:$('#rv_label').value.trim(),month:mo,amount:num(amt)}].sort((a,b)=>a.month>b.month?1:-1);await saveRev(o,rev);return}
  if(t.dataset.rvdel){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;await saveRev(o,(o.rev||[]).filter((_,i)=>i!==num(t.dataset.rvdel)));return}
  if(t.dataset.rvsplit){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const A=num($('#f_amount')?.value||o.amount);if(!A){$('#ferr').textContent='매출 합계를 먼저 입력하고 저장해 주세요.';return}
@@ -973,9 +987,9 @@ document.addEventListener('click',async e=>{
   if(a==='down'&&n<STG.length-1)[STG[n+1],STG[n]]=[STG[n],STG[n+1]];
   if(a==='save'){await saveStages();return}
   render();return}
- if(t.dataset.new){const opp=t.dataset.opp,kind=t.dataset.kind;openForm(t.dataset.new);if(kind&&$('#f_kind'))$('#f_kind').value=kind;if(opp&&$('#f_oppQ')){const o=RAW.opps.find(x=>x.id===opp);if(o){$('#f_oppQ').value=oppLabel(o);loadOpp(true);$('#f_title')?.focus()}}return}
+ if(t.dataset.new){const opp=t.dataset.opp,kind=t.dataset.kind;openForm(t.dataset.new);if(kind&&$('#f_kind')){$('#f_kind').value=kind;ctVisible()}if(opp&&$('#f_oppQ')){const o=RAW.opps.find(x=>x.id===opp);if(o){$('#f_oppQ').value=oppLabel(o);loadOpp(true);$('#f_title')?.focus()}}return}
  if(t.dataset.edit){const[c,id]=t.dataset.edit.split(':');openForm(c,id);return}
- if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&WIN_KINDS.includes(a.kind)&&a.oppId)await setStage(a.oppId,'수주')}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
+ if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&WIN_KINDS.includes(a.kind)&&a.oppId)await winFromAppr(a)}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
  if(t.dataset.set){const[k,v]=t.dataset.set.split('=');if(k==='gvP'&&F.gvP!==v)F.gvSel='';F[k]=v;render();return}
  if(t.dataset.sample){t.disabled=true;await sample(t.dataset.sample==='add')}
 });
@@ -991,12 +1005,13 @@ document.addEventListener('change',async e=>{
  if(t.dataset.qd){QD[t.dataset.qd]=t.value;return}
  if(t.dataset.goal){const[tg,i]=t.dataset.goal.split('|');await saveGoal(tg,num(i),t.value);return}
  if(t.dataset.commit){await saveCommit(t.dataset.commit,t.value);return}
- if(t.dataset.it){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const[i,k]=t.dataset.it.split(':');const v=['qty','buy','sell'].includes(k)?(t.value===''?null:num(t.value)):t.value;await saveOpp(o,{items:itemsOf(o).map((x,j)=>j===num(i)?{...x,[k]:v}:x)},'itemsec',itemsHTML);return}
- if(t.dataset.lb){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const[pi,m,f]=t.dataset.lb.split('|');const L=laborOf(o);const people=L.people.map((p,j)=>j===num(pi)?{...p,m:{...(p.m||{}),[m]:{...(p.m?.[m]||{}),[f]:t.value===''?null:num(t.value)}}}:p);setTimeout(()=>saveOpp(o,{labor:{...L,people}},'laborsec',laborHTML),0);return}
+ if(t.dataset.it){const o=ctObj();if(!o)return;const[i,k]=t.dataset.it.split(':');const v=['qty','buy','sell'].includes(k)?(t.value===''?null:num(t.value)):t.value;await ctSave(o,{items:itemsOf(o).map((x,j)=>j===num(i)?{...x,[k]:v}:x)},'itemsec',itemsHTML);return}
+ if(t.dataset.lb){const o=ctObj();if(!o)return;const[pi,m,f]=t.dataset.lb.split('|');const L=laborOf(o);const people=L.people.map((p,j)=>j===num(pi)?{...p,m:{...(p.m||{}),[m]:{...(p.m?.[m]||{}),[f]:t.value===''?null:num(t.value)}}}:p);setTimeout(()=>ctSave(o,{labor:{...L,people}},'laborsec',laborHTML),0);return}
  if(t.dataset.rv){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const[i,k]=t.dataset.rv.split(':');const rev=(o.rev||[]).map((r,j)=>j===num(i)?{...r,[k]:k==='collected'?(t.value===''?null:num(t.value)):t.value}:r);await saveRev(o,rev);return}
  if(t.id==='scopeSel'){F.scope=t.value;refreshMe();render();return}
  if(t.dataset.og){ogEdit(t);return}
  if(t.dataset.st){stEdit(t);return}
+ if(t.id==='f_kind'){ctVisible();return}
  if(t.id==='f_oppQ'){loadOpp(true);return}
  if(t.dataset.f&&t.tagName==='SELECT'){F[t.dataset.f]=t.value;render()}
 });
