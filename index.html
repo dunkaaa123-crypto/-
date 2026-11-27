@@ -186,6 +186,8 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 .lbname{vertical-align:top;min-width:7em}
 .lbin{width:4.2em;font:inherit;font-size:12px;padding:3px 3px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink);text-align:right}
 .rvt td{white-space:nowrap}
+.bltable td{white-space:nowrap;vertical-align:middle}
+.bltable input{font:inherit;font-size:13px;padding:3px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink)}
 .rvt input{font:inherit;font-size:13px;padding:3px 4px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink)}
 .code{font-family:Archivo,monospace;font-stretch:100%;font-size:12px;font-weight:700;letter-spacing:.02em;background:var(--ink);color:var(--bg);padding:1px 6px;border-radius:3px;white-space:nowrap}
 .card .code{display:inline-block;margin-bottom:4px}
@@ -277,7 +279,7 @@ const MENU=[
   {n:'계약 상세',c:[['items','상품·SW 매입/매출 현황'],['labor','인력 투입 현황 (인건비)']]},
   {n:'결재',c:[['apprall','전체 품의 결재함']]}]},
  {n:'채권 / 사후관리',c:[
-  {n:'매출 · 수금',c:[['revplan','월별 매출 계획·실적'],['ar','채권(미수금) 현황'],['armonth','월별 수금 계획']]},
+  {n:'매출 · 수금',c:[['billing','세금계산서 발행·수금 입력'],['ar','채권(미수금) 현황'],['armonth','월별 수금 계획'],['revplan','월별 매출 계획·실적']]},
   {n:'사후관리',c:[['vendor','협력업체(외주인력) 평가'],['vendorsum','협력업체 종합평가 현황']]}]},
  {n:'시스템 관리',c:[
   {n:'설정',c:[['org','조직 · 팀 설정'],['users','사용자 · 권한'],['stages','영업단계 설정']]}]}
@@ -547,6 +549,22 @@ function vCust(){
 function arKpis(){const rows=arItems(),tot=sum(rows,r=>r.amount),col=sum(rows,r=>r.collected),over=rows.filter(r=>arState(r)==='연체');
  return `<div class="kpis">${kpi('발행 매출',fmt(tot),'백만원')}${kpi('수금',fmt(col),'백만원')}${kpi('미수금',fmt(tot-col),'백만원')}${kpi('수금률',pct(col,tot),'%')}${kpi('연체',fmt(sum(over,arLeft)),'백만원 · '+over.length+'건',over.length?'alert':'')}</div>`}
 const arTable=rows=>rows.length?`<div class="scroll"><table class="stack"><thead><tr><th>기회번호</th><th>청구처</th><th>영업기회</th><th>회차</th><th>매출월</th><th>발행일</th><th class="n">금액</th><th class="n">미수</th><th>수금률</th><th>수금예정</th><th>상태</th><th>담당</th></tr></thead><tbody>${rows.map(r=>{const st=arState(r);return `<tr data-edit="opps:${esc(r.o.id)}"><td data-l="기회번호">${codeCell(r.o.code)}</td><td data-l="청구처"><b>${esc(r.bill)}</b></td><td data-l="영업기회">${esc(r.o.name)}</td><td data-l="회차">${esc(r.label||'-')}</td><td data-l="매출월">${esc(r.month)}</td><td data-l="발행일">${esc(r.invoiceDate)}</td><td class="n" data-l="금액">${fmt(r.amount)}</td><td class="n" data-l="미수">${fmt(arLeft(r))}</td><td data-l="수금률"><div class="bar thin" style="width:60px;display:inline-block;vertical-align:middle"><i style="width:${Math.min(100,pct(r.collected,r.amount))}%"></i></div> ${pct(r.collected,r.amount)}%</td><td data-l="수금예정">${esc(r.dueDate||'-')}</td><td data-l="상태"><span class="chip ${st==='연체'?'red':st==='완료'?'ok':''}">${st}</span></td><td data-l="담당">${esc(r.owner)}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">세금계산서가 발행된 매출이 없습니다. 영업기회 상세의 ‘매출 인식 계획’에서 발행일을 입력하면 여기에 나타납니다.</p>';
+function vBilling(){
+ const fl=F.bl||'open';
+ const won=D.opps.filter(o=>o.stage==='수주');
+ const rows=[];for(const o of won){const rv=Array.isArray(o.rev)?o.rev:[];if(!rv.length){rows.push({o,none:true});continue}rv.forEach((r,i)=>rows.push({o,r,i}))}
+ const st=x=>x.none?'계획없음':!x.r.invoiceDate?'미발행':arLeft({amount:x.r.amount,collected:x.r.collected})<=0?'완료':(x.r.dueDate&&x.r.dueDate<TODAY?'연체':'미수');
+ const vis=rows.filter(x=>{const s=st(x);return fl==='all'||(fl==='open'&&s!=='완료')||(fl==='noinv'&&(s==='미발행'||s==='계획없음'))||(fl==='ar'&&(s==='미수'||s==='연체'))||(fl==='done'&&s==='완료')}).sort((a,b)=>String(a.r?.month||'0')>String(b.r?.month||'0')?1:-1);
+ const cnt=k=>rows.filter(x=>st(x)===k).length;
+ const inp=(x,f,type,w)=>{const id=`bl_${x.o.id}_${x.i}_${f}`;return canWrite?`<input id="${esc(id)}" type="${type}" ${type==='number'?'step="any"':''} data-bl="${esc(x.o.id)}|${x.i}|${f}" value="${esc(x.r[f]??'')}" style="width:${w}" aria-label="${f}">`:esc(x.r[f]??'-')};
+ return head('세금계산서 발행·수금 입력','수주(계약)된 모든 영업기회의 매출 회차입니다. 세금계산서를 발행하면 발행일을, 입금되면 수금액과 수금일을 여기서 바로 입력하세요. 칸을 벗어나면 저장되고 채권 현황·월별 수금 계획에 즉시 반영됩니다. 수주품의·판매품의·계약이 승인되면 품의 내용으로 회차가 자동으로 만들어집니다.')+
+ `<div class="kpis">${kpi('미발행',cnt('미발행'),'회차')}${kpi('발행·미수',cnt('미수'),'회차')}${kpi('연체',cnt('연체'),'회차',cnt('연체')?'alert':'')}${kpi('수금 완료',cnt('완료'),'회차')}${kpi('회차 계획 없음',cnt('계획없음'),'건',cnt('계획없음')?'alert':'')}</div>
+ <div class="filters"><div class="seg">${[['open','처리할 것 전체'],['noinv','미발행'],['ar','발행·미수'],['done','수금 완료'],['all','전체']].map(([k,l])=>`<button data-set="bl=${k}" class="${fl===k?'on':''}">${l}</button>`).join('')}</div></div>`+
+ (vis.length?`<div class="scroll"><table class="qtable bltable"><thead><tr><th>기회번호</th><th>청구처 / 영업기회</th><th>회차</th><th>매출월</th><th class="n">금액</th><th>세금계산서 발행일</th><th>수금 예정일</th><th class="n">수금액</th><th>수금일</th><th>상태</th><th>담당</th></tr></thead><tbody>${vis.map(x=>{const s=st(x);const chip=`<span class="chip ${s==='연체'?'red':s==='완료'?'ok':s==='미수'?'warn':''}">${s}</span>`;
+  if(x.none)return `<tr style="cursor:default"><td>${codeCell(x.o.code)}</td><td><b>${esc(x.o.partner||x.o.customer)}</b><div class="s">${esc(x.o.name)}</div></td><td colspan="7" class="s">매출 회차가 없습니다. ${canWrite?`<button type="button" class="btn xs" data-mkrev="${esc(x.o.id)}">수주금액 ${fmt(x.o.amount)}로 1회차 만들기</button> <button type="button" class="btn xs" data-edit="opps:${esc(x.o.id)}">분할해서 만들기</button>`:''}</td><td>${chip}</td><td>${esc(x.o.owner)}</td></tr>`;
+  return `<tr style="cursor:default"><td>${codeCell(x.o.code)}</td><td><b>${esc(x.o.partner||x.o.customer)}</b><div class="s"><a href="#" data-edit="opps:${esc(x.o.id)}">${esc(x.o.name)}</a></div></td><td>${esc(x.r.label||'-')}${x.r.from?`<div class="s">${esc(x.r.from)}</div>`:''}</td><td>${esc(x.r.month)}</td><td class="n">${inp(x,'amount','number','6em')}</td><td>${inp(x,'invoiceDate','date','9.5em')}</td><td>${inp(x,'dueDate','date','9.5em')}</td><td class="n">${inp(x,'collected','number','6em')}</td><td>${inp(x,'collectedDate','date','9.5em')}</td><td>${chip}</td><td>${esc(x.o.owner)}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="empty">해당하는 회차가 없습니다.</p>')+
+ `<p class="note">발행일을 넣으면 수금 예정일이 비어 있을 때 30일 뒤로 자동 입력됩니다. 회차 추가·분할은 영업기회 상세의 ‘매출 인식 계획·수금’에서 합니다.</p>`;
+}
 function vAR(){
  const rows=arItems().sort((a,b)=>{const o={연체:0,정상:1,완료:2};return o[arState(a)]-o[arState(b)]||((a.dueDate||'')>(b.dueDate||'')?1:-1)});
  return head('채권(미수금) 현황','수주한 영업기회의 매출 인식 계획 중 세금계산서가 발행된 회차를 모았습니다. 수금 예정일이 지난 미수금은 연체입니다. 행을 누르면 해당 영업기회에서 수금을 입력합니다.')+arKpis()+arTable(rows);
@@ -742,7 +760,7 @@ function vStages(){
 }
 
 const _rg=()=>{if(route()==='goals')recalcGoals()};
-const VIEWS={home:vHome,oppmgmt:vOppMgmt,act:vAct,actrep:vActRep,oppboard:vOppBoard,opplist:vOppList,lost:vLost,cust:vCust,pl:vPL,plmonth:vPLMonth,apprall:()=>vAppr(''),ar:vAR,armonth:vARMonth,vendor:vVendor,vendorsum:vVendorSum,users:vUsers,stages:vStages,org:vOrg,goals:vGoals,goalvs:vGoalVs,forecast:vForecast,revplan:vRevPlan,items:vItems,labor:vLabor};
+const VIEWS={home:vHome,oppmgmt:vOppMgmt,act:vAct,actrep:vActRep,oppboard:vOppBoard,opplist:vOppList,lost:vLost,cust:vCust,pl:vPL,plmonth:vPLMonth,apprall:()=>vAppr(''),ar:vAR,armonth:vARMonth,vendor:vVendor,vendorsum:vVendorSum,users:vUsers,stages:vStages,org:vOrg,goals:vGoals,goalvs:vGoalVs,forecast:vForecast,revplan:vRevPlan,billing:vBilling,items:vItems,labor:vLabor};
 Object.entries(KINDS).forEach(([id,k])=>VIEWS[id]=()=>vAppr(k));
 const route=()=>{const h=location.hash.slice(1);return VIEWS[h]?h:'oppmgmt'};
 
@@ -871,7 +889,13 @@ async function save(e){
 async function winFromAppr(a){const o=RAW.opps.find(x=>x.id===a.oppId);if(!o)return;const{id,...r}=o;const patch={stage:'수주',closeDate:o.closeDate||TODAY,wonDate:o.wonDate||TODAY,wonBy:a.kind,updatedAt:Date.now()};
  const t=ctTotals(a);if(t.has){if(itemsOf(a).length)patch.items=clone(a.items);if(a.labor&&a.labor.people?.length)patch.labor=clone(a.labor);patch.amtSW=t.sw||null;patch.amtHW=t.hw||null;patch.amtSvc=t.svc||null;patch.cost=Math.round((t.buy+t.lcost)*100)/100;patch.amount=Math.round((t.sw+t.hw+t.svc+num(o.amtMA))*100)/100}
  else if(num(a.amount)){patch.amount=num(a.amount);if(!blank(a.cost))patch.cost=num(a.cost)}
+ if(!(Array.isArray(o.rev)&&o.rev.length)){const rv=revFromAppr(a,o);if(rv.length)patch.rev=rv}
  await db.collection('opps').doc(id).set({...r,...patch})}
+function revFromAppr(a,o){const wm=String(o.wonDate||TODAY).slice(0,7),rows=[];const it=itemsOf(a),L=a.labor&&Array.isArray(a.labor.people)?a.labor:null;
+ const isum=sum(it,x=>num(x.sell));if(isum)rows.push({label:'상품·SW',month:wm,amount:Math.round(isum*100)/100,from:a.kind});
+ if(L){for(const m of monthsFrom(L.start,L.n)){const v=sum(L.people,p=>num(p.m?.[m]?.sell));if(v)rows.push({label:'인건비 '+m.slice(5)+'월',month:m,amount:Math.round(v*100)/100,from:a.kind})}}
+ if(!rows.length&&num(a.amount))rows.push({label:a.kind||'일시',month:wm,amount:num(a.amount),from:a.kind});
+ return rows.sort((x,y)=>x.month>y.month?1:-1)}
 async function setStage(id,stage){const o=RAW.opps.find(x=>x.id===id);if(o&&o.stage!==stage){const{id:_,...r}=o;await db.collection('opps').doc(id).set({...r,stage,closeDate:stage==='수주'?(o.closeDate||TODAY):o.closeDate,wonDate:stage==='수주'?(o.wonDate||TODAY):(o.wonDate||null),updatedAt:Date.now()})}}
 const closeM=()=>{$('#modal').innerHTML='';M=null};
 const ctObj=()=>M?(M.col==='approvals'?M.draft:RAW.opps.find(x=>x.id===M.id)):null;
@@ -942,12 +966,13 @@ async function saveStages(){
 document.addEventListener('click',async e=>{
  if(e.target.closest('#menuBtn')){document.body.classList.toggle('navopen');return}
  if(document.body.classList.contains('navopen')&&!e.target.closest('aside')){document.body.classList.remove('navopen');if(!e.target.closest('a'))return}
- const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-madd],[data-mbulk],[data-mdel],[data-mfrom],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],[data-itadd],[data-itdel],[data-lbperiod],[data-lbadd],[data-lbdel],[data-applyct],[data-lbrev],#delBtn');if(!t)return;
+ const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-madd],[data-mbulk],[data-mdel],[data-mfrom],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],[data-mkrev],[data-itadd],[data-itdel],[data-lbperiod],[data-lbadd],[data-lbdel],[data-applyct],[data-lbrev],#delBtn');if(!t)return;
  if(t.dataset.closetab){const id=t.dataset.closetab,i=TABS.indexOf(id);TABS=TABS.filter(x=>x!==id);if(!TABS.length)TABS=['oppmgmt'];saveTabs();if(route()===id){location.hash=TABS[Math.max(0,i-1)]||'oppmgmt'}else{renderTree();renderTabs()}return}
  if(t.dataset.close!==undefined){if(e.target===t||t.tagName==='BUTTON')closeM();return}
  if(t.id==='delBtn'){if(!M.del){M.del=true;t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection(M.col).doc(M.id).delete();closeM()}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
  if(t.dataset.lost){openLost(t.dataset.lost);return}
  if(t.dataset.reopen){const o=RAW.opps.find(x=>x.id===t.dataset.reopen);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,stage:OPEN[OPEN.length-1].k,updatedAt:Date.now()});closeM()}catch(x){$('#ferr').textContent='저장하지 못했습니다.'}return}
+ if(t.dataset.mkrev){const o=RAW.opps.find(x=>x.id===t.dataset.mkrev);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,rev:[{label:'일시',month:wonMonth(o)||MONTH,amount:num(o.amount)}],updatedAt:Date.now()})}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
  if(t.dataset.itadd){const o=ctObj();const n=$('#it_name').value.trim();if(!o||!n){$('#it_name').focus();return}const nv=k=>{const v=$(k).value;return v===''?null:num(v)};await ctSave(o,{items:[...itemsOf(o),{kind:$('#it_kind').value,name:n,vendor:$('#it_vendor').value.trim(),qty:nv('#it_qty'),buy:nv('#it_buy'),sell:nv('#it_sell')}]},'itemsec',itemsHTML);$('#it_name')?.focus();return}
  if(t.dataset.itdel){const o=ctObj();if(!o)return;await ctSave(o,{items:itemsOf(o).filter((_,i)=>i!==num(t.dataset.itdel))},'itemsec',itemsHTML);return}
  if(t.dataset.lbperiod){const o=ctObj();if(!o)return;const L=laborOf(o);await ctSave(o,{labor:{...L,start:$('#lb_start').value||L.start,n:Math.max(1,Math.min(36,num($('#lb_n').value)||L.n))}},'laborsec',laborHTML);return}
@@ -1000,7 +1025,7 @@ document.addEventListener('click',async e=>{
   if(a==='save'){await saveStages();return}
   render();return}
  if(t.dataset.new){const opp=t.dataset.opp,kind=t.dataset.kind;openForm(t.dataset.new);if(kind&&$('#f_kind')){$('#f_kind').value=kind;ctVisible()}if(opp&&$('#f_oppQ')){const o=RAW.opps.find(x=>x.id===opp);if(o){$('#f_oppQ').value=oppLabel(o);loadOpp(true);$('#f_title')?.focus()}}return}
- if(t.dataset.edit){const[c,id]=t.dataset.edit.split(':');openForm(c,id);return}
+ if(t.dataset.edit){e.preventDefault();const[c,id]=t.dataset.edit.split(':');openForm(c,id);return}
  if(t.dataset.flow){const[id,s]=t.dataset.flow.split(':');const a=RAW.approvals.find(x=>x.id===id);if(!a)return;if(['승인','반려'].includes(s)&&!canApprove(a))return;const{id:_,...r}=a;const b={...r,status:s,updatedAt:Date.now()};if(['승인','반려'].includes(s))b.decidedAt=TODAY;try{await db.collection('approvals').doc(id).set(b);if(s==='승인'&&WIN_KINDS.includes(a.kind)&&a.oppId)await winFromAppr(a)}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
  if(t.dataset.set){const[k,v]=t.dataset.set.split('=');if(k==='gvP'&&F.gvP!==v)F.gvSel='';F[k]=v;render();return}
  if(t.dataset.sample){t.disabled=true;await sample(t.dataset.sample==='add')}
@@ -1017,6 +1042,9 @@ document.addEventListener('change',async e=>{
  if(t.dataset.qd){QD[t.dataset.qd]=t.value;return}
  if(t.dataset.goal){const[tg,i]=t.dataset.goal.split('|');await saveGoal(tg,num(i),t.value);return}
  if(t.dataset.commit){await saveCommit(t.dataset.commit,t.value);return}
+ if(t.dataset.bl){const[oid,i,f]=t.dataset.bl.split('|');const o=RAW.opps.find(x=>x.id===oid);if(!o)return;const v=['amount','collected'].includes(f)?(t.value===''?null:num(t.value)):t.value;
+  const rev=(o.rev||[]).map((r,j)=>{if(j!==num(i))return r;const n={...r,[f]:v};if(f==='invoiceDate'&&v&&!r.dueDate){const d=new Date(v);d.setDate(d.getDate()+30);n.dueDate=ymd(d)}if(f==='collected'&&v&&!r.collectedDate)n.collectedDate=TODAY;return n});
+  const{id,...r}=o;setTimeout(()=>db.collection('opps').doc(id).set({...r,rev,updatedAt:Date.now()}).catch(()=>{$('#net').textContent='저장하지 못했습니다';render()}),0);return}
  if(t.dataset.it){const o=ctObj();if(!o)return;const[i,k]=t.dataset.it.split(':');const v=['qty','buy','sell'].includes(k)?(t.value===''?null:num(t.value)):t.value;await ctSave(o,{items:itemsOf(o).map((x,j)=>j===num(i)?{...x,[k]:v}:x)},'itemsec',itemsHTML);return}
  if(t.dataset.lb){const o=ctObj();if(!o)return;const[pi,m,f]=t.dataset.lb.split('|');const L=laborOf(o);const people=L.people.map((p,j)=>j===num(pi)?{...p,m:{...(p.m||{}),[m]:{...(p.m?.[m]||{}),[f]:t.value===''?null:num(t.value)}}}:p);setTimeout(()=>ctSave(o,{labor:{...L,people}},'laborsec',laborHTML),0);return}
  if(t.dataset.rv){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const[i,k]=t.dataset.rv.split(':');const rev=(o.rev||[]).map((r,j)=>j===num(i)?{...r,[k]:k==='collected'?(t.value===''?null:num(t.value)):t.value}:r);await saveRev(o,rev);return}
