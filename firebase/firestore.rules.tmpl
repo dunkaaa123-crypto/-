@@ -1,0 +1,46 @@
+rules_version = '2';
+// 영업관리(Sales Hub) Firestore 보안 규칙
+// - 메일 인증을 마친 사용자 중, 명단(allow/{이메일})에 있거나 소유자 이메일인 사람만 접근
+// - 명단·설정·로그인 허용 목록은 관리자(소유자·사업부장)만 수정
+// - 영업기회·활동은 본인 담당 건만 수정 (팀장·사업부장은 전체 수정)
+// __OWNER_EMAILS__ 는 배포할 때 GitHub Secret OWNER_EMAIL 값으로 바뀝니다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function em() { return request.auth.token.email.lower(); }
+    function allowPath() { return /databases/$(database)/documents/allow/$(em()); }
+    function hasProfile() { return signedIn() && exists(allowPath()); }
+    function prof() { return get(allowPath()).data; }
+    function isOwner() { return signedIn() && em() in __OWNER_EMAILS__; }
+    function member() { return isOwner() || hasProfile(); }
+    function admin() { return isOwner() || (hasProfile() && prof().role == '사업부장'); }
+    function leader() { return admin() || (hasProfile() && prof().role == '팀장'); }
+    function myName() { return hasProfile() ? prof().name : ''; }
+
+    match /allow/{email} {
+      allow read: if signedIn() && (email == em() || member());
+      allow write: if admin();
+    }
+    match /members/{id} { allow read: if member(); allow write: if admin(); }
+    match /config/{id}  { allow read: if member(); allow write: if admin(); }
+    match /roles/{id}   { allow read: if member(); allow write: if admin(); }
+    match /reps/{uid}   { allow read: if member(); allow write: if admin() || (member() && request.auth.uid == uid); }
+    match /goals/{id}   { allow read: if member(); allow write: if leader(); }
+    match /commits/{id} { allow read, write: if member(); }
+    match /customers/{id} { allow read, write: if member(); }
+    match /vendors/{id}   { allow read, write: if member(); }
+
+    match /opps/{id} {
+      allow read, create: if member();
+      allow update, delete: if leader() || (member() && resource.data.owner == myName());
+    }
+    match /activities/{id} {
+      allow read, create: if member();
+      allow update, delete: if leader() || (member() && resource.data.owner == myName());
+    }
+    match /approvals/{id} {
+      allow read, create: if member();
+      allow update, delete: if leader() || (member() && (resource.data.requester == myName() || resource.data.approver == myName()));
+    }
+  }
+}

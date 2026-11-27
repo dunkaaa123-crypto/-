@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "public": "dist/public",
+    "ignore": ["firebase.json", "**/.*"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          { "key": "Referrer-Policy", "value": "same-origin" }
+        ]
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "dist/firestore.rules"
+  }
+}

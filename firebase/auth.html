@@ -1,0 +1,66 @@
+<style>
+html.auth-open body{overflow:hidden}
+#auth{position:fixed;inset:0;z-index:100;background:var(--bg,#fff);display:flex;align-items:center;justify-content:center;padding:24px 16px;overflow-y:auto}
+#authBox{width:100%;max-width:400px;border-top:6px solid var(--ink,#111);padding:28px 4px 8px}
+#authBox h1{font-size:28px;margin:0 0 4px;letter-spacing:-.02em}
+#authBox h1 b{color:var(--red,#e4002b)}
+#authBox .asub{color:var(--mut,#6b6b6b);margin:0 0 22px;font-size:14px}
+#authBox h2{font-size:18px;margin:0 0 12px}
+#authBox label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;margin-bottom:12px}
+#authBox input{font:inherit;font-size:16px;font-weight:400;padding:10px 12px;border:1px solid color-mix(in srgb,var(--ink,#111) 35%,transparent);border-radius:4px;background:var(--bg,#fff);color:var(--ink,#111)}
+#authBox input:focus{outline:2px solid var(--red,#e4002b);outline-offset:1px}
+#authBox .go{display:flex;justify-content:space-between;gap:8px;margin-top:14px;font-size:14px;flex-wrap:wrap}
+#authBox a{color:var(--ink,#111)}
+#authBox .full{width:100%;min-height:44px;margin-top:4px}
+.auth-msg{min-height:20px;font-size:14px;margin:4px 0 12px;color:var(--ok,#0a7d3b);font-weight:700}
+.auth-msg.bad{color:var(--red,#e4002b)}
+#authBox .help{font-size:13px;color:var(--mut,#6b6b6b);margin-top:18px;border-top:1px solid var(--line,#ddd);padding-top:12px}
+</style>
+<div id="auth">
+  <div id="authBox">
+    <h1>영업관리 <b>●</b> Sales Hub</h1>
+    <p class="asub">회사 메일과 비밀번호로 로그인합니다.</p>
+    <div class="auth-msg" id="authMsg" role="status"></div>
+
+    <div data-view="loading"><p>확인 중…</p></div>
+
+    <form id="fLogin" data-view="login" hidden novalidate>
+      <h2>로그인</h2>
+      <label>회사 메일<input name="email" type="email" autocomplete="username" required></label>
+      <label>비밀번호<input name="pw" type="password" autocomplete="current-password" required></label>
+      <button class="btn pri full" type="submit">로그인</button>
+      <div class="go"><a href="#" data-go="signup">처음 사용 (비밀번호 만들기)</a><a href="#" data-go="reset">비밀번호 찾기</a></div>
+    </form>
+
+    <form id="fSignup" data-view="signup" hidden novalidate>
+      <h2>처음 사용: 비밀번호 만들기</h2>
+      <label>회사 메일 (관리자가 명단에 등록한 메일)<input name="email" type="email" autocomplete="username" required></label>
+      <label>새 비밀번호 (8자 이상)<input name="pw" type="password" autocomplete="new-password" required></label>
+      <label>새 비밀번호 확인<input name="pw2" type="password" autocomplete="new-password" required></label>
+      <button class="btn pri full" type="submit">비밀번호 만들고 인증 메일 받기</button>
+      <div class="go"><a href="#" data-go="login">← 로그인으로</a></div>
+    </form>
+
+    <form id="fReset" data-view="reset" hidden novalidate>
+      <h2>비밀번호 찾기</h2>
+      <label>회사 메일<input name="email" type="email" autocomplete="username" required></label>
+      <button class="btn pri full" type="submit">재설정 메일 받기</button>
+      <div class="go"><a href="#" data-go="login">← 로그인으로</a></div>
+    </form>
+
+    <div data-view="verify" hidden>
+      <h2>메일 인증</h2>
+      <button class="btn pri full" type="button" data-act="reload">인증 완료</button>
+      <div class="go"><a href="#" data-act="resend">인증 메일 다시 받기</a><a href="#" data-act="logout">다른 메일로 로그인</a></div>
+    </div>
+
+    <div data-view="denied" hidden>
+      <h2>접근 권한 없음</h2>
+      <button class="btn full" type="button" data-act="logout">로그아웃</button>
+    </div>
+
+    <div data-view="setup" hidden><h2>설정 필요</h2></div>
+
+    <p class="help">처음 접속하면 ‘처음 사용’에서 비밀번호를 만들고, 메일로 온 인증 링크를 누르면 됩니다. 명단에 메일이 등록되지 않았다면 관리자(사업부장)에게 요청하세요.</p>
+  </div>
+</div>
