@@ -31,13 +31,13 @@ key_project = (sa.get('project_id') or '').strip()
 if not key_project:
     fail('서비스 계정 키에 project_id 가 없습니다. 키를 다시 생성해 주세요.')
 
-web = os.environ.get('FIREBASE_WEB_CONFIG', '')
+web = os.environ.get('FIREBASE_WEB_CONFIG', '').replace('\\"', '"')
 import re as _re
 def _get(k):
     m = _re.search(r'["\']?' + k + r'["\']?\s*:\s*["\']([^"\']+)["\']', web)
     return m.group(1).strip() if m else ''
 api, wproj = _get('apiKey'), _get('projectId')
-if web:
+if web.strip():
     if not (api.startswith('AIza') and len(api) == 39):
         fail(f'FIREBASE_WEB_CONFIG 의 apiKey 가 올바르지 않습니다 (AIza 로 시작하는 39자여야 하는데 {len(api)}자). '
              'Firebase 콘솔 > 프로젝트 설정 > 일반 > 내 앱 > "SDK 설정 및 구성"의 "구성(Config)"에서 firebaseConfig 블록 전체를 다시 복사해 넣어 주세요.')

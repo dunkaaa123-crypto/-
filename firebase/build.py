@@ -19,7 +19,7 @@ SDK = '10.12.2'
 
 def main():
     app = SRC.read_text(encoding='utf8')
-    cfg_raw = os.environ.get('FIREBASE_WEB_CONFIG', '').strip()
+    cfg_raw = os.environ.get('FIREBASE_WEB_CONFIG', '').strip().replace('\\"', '"')
     cfg = {}
     if cfg_raw:
         # 콘솔에서 복사한 내용 그대로(import 줄, // 주석, const firebaseConfig = {...}) 넣어도 되도록

@@ -2,16 +2,18 @@ name: Firebase 배포 (영업관리 Sales Hub)
 
 # GitHub 저장소 > Actions > "Firebase 배포" > Run workflow 버튼으로 실행합니다.
 # 필요한 Secrets (Settings > Secrets and variables > Actions):
-#   FIREBASE_PROJECT_ID       Firebase 프로젝트 ID (예: my-saleshub) — 비워도 키 파일의 값으로 자동 사용
-#   FIREBASE_WEB_CONFIG       콘솔 > 프로젝트 설정 > 내 앱(웹)의 firebaseConfig 내용
-#   FIREBASE_SERVICE_ACCOUNT  콘솔 > 프로젝트 설정 > 서비스 계정 > 새 비공개 키(JSON) 파일 내용 전체
-#   OWNER_EMAIL               소유자(관리자) 이메일, 여러 명이면 쉼표로 구분
+#   FIREBASE_SERVICE_ACCOUNT  콘솔 > 프로젝트 설정 > 서비스 계정 > 새 비공개 키(JSON) 파일 내용 전체  (필수)
+#   OWNER_EMAIL               소유자(관리자) 이메일, 여러 명이면 쉼표로 구분                        (필수)
+#   FIREBASE_WEB_CONFIG       (선택) 비워도 됩니다. 배포 때 Firebase 에서 웹 설정을 자동으로 가져옵니다.
+#   FIREBASE_PROJECT_ID       (선택) 비워도 됩니다. 서비스 계정 키의 프로젝트로 배포합니다.
 on:
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FT: firebase-tools@13.29.1
     steps:
       - uses: actions/checkout@v4
 
@@ -19,37 +21,70 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: 배포본 만들기
-        env:
-          FIREBASE_WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
-          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
-        run: python3 firebase/build.py
-
-      - name: 설정값 점검 (프로젝트 ID · 서비스 계정 키)
-        id: check
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
-        run: python3 firebase/check_secrets.py
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Firebase 에 배포 (호스팅 + 보안 규칙)
-        working-directory: firebase
+      - name: 설정값 점검 (서비스 계정 키)
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: python3 firebase/check_secrets.py
+
+      - name: 웹 설정 자동 가져오기 (Firebase 콘솔에서 복사할 필요 없음)
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          MANUAL_WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
-          PROJECT_ID=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['project_id'])" "$RUNNER_TEMP/sa.json")
+          P=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['project_id'])" "$RUNNER_TEMP/sa.json")
+          echo "PROJECT_ID=$P" >> "$GITHUB_ENV"
           set +e
-          npx --yes firebase-tools@13.29.1 deploy --only hosting,firestore:rules --project "$PROJECT_ID" --non-interactive
+          npx --yes $FT apps:list WEB --project "$P" --json > "$RUNNER_TEMP/apps.json" 2>/dev/null
+          APP=$(python3 firebase/pick_app.py "$RUNNER_TEMP/apps.json")
+          if [ -z "$APP" ]; then
+            echo "웹 앱이 없어 새로 등록합니다 (saleshub)."
+            npx --yes $FT apps:create WEB saleshub --project "$P" --json > "$RUNNER_TEMP/created.json" 2>/dev/null
+            APP=$(python3 firebase/pick_app.py "$RUNNER_TEMP/created.json")
+          fi
+          if [ -n "$APP" ]; then
+            npx --yes $FT apps:sdkconfig WEB "$APP" --project "$P" --json > "$RUNNER_TEMP/webcfg.txt" 2>/dev/null
+          fi
+          set -e
+          if grep -q '"apiKey"' "$RUNNER_TEMP/webcfg.txt" 2>/dev/null || grep -q 'apiKey:' "$RUNNER_TEMP/webcfg.txt" 2>/dev/null; then
+            echo "웹 설정을 Firebase 에서 자동으로 가져왔습니다."
+          elif [ -n "$MANUAL_WEB_CONFIG" ]; then
+            echo "::warning::자동으로 가져오지 못해 FIREBASE_WEB_CONFIG 비밀값을 사용합니다."
+            printf '%s' "$MANUAL_WEB_CONFIG" > "$RUNNER_TEMP/webcfg.txt"
+          else
+            echo "::error::웹 설정을 가져오지 못했습니다. 서비스 계정에 'Firebase 관리자' 역할이 있는지 확인하세요."
+            exit 1
+          fi
+
+      - name: 웹 설정 확인
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: FIREBASE_WEB_CONFIG="$(cat "$RUNNER_TEMP/webcfg.txt")" python3 firebase/check_secrets.py
+
+      - name: 배포본 만들기
+        env:
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+        run: FIREBASE_WEB_CONFIG="$(cat "$RUNNER_TEMP/webcfg.txt")" python3 firebase/build.py
+
+      - name: Firebase 에 배포 (호스팅 + 보안 규칙)
+        working-directory: firebase
+        run: |
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          set +e
+          npx --yes $FT deploy --only hosting,firestore:rules --project "$PROJECT_ID" --non-interactive
           code=$?
-          rm -f "$RUNNER_TEMP/sa.json"
           if [ $code -ne 0 ]; then
-            echo "::error::배포 실패. 'Failed to get Firebase project' 또는 'permission' 오류라면, Google Cloud 콘솔 > IAM 에서 서비스 계정(firebase-adminsdk-...)에 'Firebase 관리자' 역할을 추가한 뒤 다시 실행하세요. 'Hosting' 관련 오류라면 Firebase 콘솔 > Hosting > 시작하기를 먼저 눌러 주세요."
+            echo "::error::배포 실패. 'permission' 오류라면 Google Cloud 콘솔 > IAM 에서 서비스 계정(firebase-adminsdk-...)에 'Firebase 관리자' 역할을 추가한 뒤 다시 실행하세요. 'Hosting' 관련 오류라면 Firebase 콘솔 > Hosting > 시작하기를 먼저 눌러 주세요."
           fi
           exit $code
+
+      - name: 임시 키 파일 삭제
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"
