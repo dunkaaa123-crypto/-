@@ -38,6 +38,11 @@ service cloud.firestore {
       allow read, create: if member();
       allow update, delete: if leader() || (member() && resource.data.owner == myName());
     }
+    match /comments/{id} {
+      allow read: if member();
+      allow create: if admin() || (leader() && request.resource.data.by == myName());
+      allow update, delete: if admin() || (leader() && resource.data.by == myName());
+    }
     match /approvals/{id} {
       allow read, create: if member();
       allow update, delete: if leader() || (member() && (resource.data.requester == myName() || resource.data.approver == myName()));

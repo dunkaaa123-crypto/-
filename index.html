@@ -160,6 +160,12 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 .gin:focus{border-color:var(--red)}
 .qcol{background:var(--surf)}
 .actcol{background:var(--redt)}
+.chip.cmt{background:var(--warnt);color:var(--warn)}
+.cmtitem{border-left:3px solid var(--warn);background:var(--surf);padding:8px 10px;border-radius:0 4px 4px 0;margin-bottom:8px}
+.cmthead{font-size:13px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cmttext{margin-top:4px;white-space:pre-wrap;font-size:14px}
+.cmtadd{display:flex;gap:8px;align-items:flex-end;margin-top:6px}
+.cmtadd textarea{flex:1;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
 .ycol{background:color-mix(in srgb,var(--ink) 8%,transparent)}
 .gtable .gname{position:sticky;left:0;background:var(--bg);z-index:1}
 .gtable .orow .gname{background:var(--redt)}
@@ -326,7 +332,15 @@ let TABS=['oppmgmt'];try{const s=JSON.parse(localStorage.getItem('sh_tabs')||'nu
 const saveTabs=()=>{try{localStorage.setItem('sh_tabs',JSON.stringify(TABS))}catch(e){}};
 
 const teamName=id=>ORGCFG.teams.find(t=>t.id===id)?.name||'';
-let MEMBERS=[],MMSG={ok:'',err:''};
+let MEMBERS=[],MMSG={ok:'',err:''},CMTS=[];
+const canComment=()=>canWrite&&!!ME.rep&&(ME.owner||ME.role==='팀장'||ME.role==='사업부장');
+const cmtsOf=(col,id)=>CMTS.filter(c=>c.target===col&&c.targetId===id).sort((a,b)=>num(a.at)-num(b.at));
+const cmtCount=(col,id)=>CMTS.reduce((n,c)=>n+(c.target===col&&c.targetId===id?1:0),0);
+const cmtChip=(col,r)=>{const n=cmtCount(col,r.id);return n?`<span class="chip cmt" title="팀장·사업부장 코멘트">코멘트 ${n}</span>`:''};
+const fmtAt=t=>{if(!t)return'';const d=new Date(num(t));return `${ymd(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`};
+function cmtListHTML(col,id){const cs=cmtsOf(col,id);return cs.length?cs.map(c=>`<div class="cmtitem"><div class="cmthead"><b>${esc(c.by||'')}</b> <span class="chip ${c.byRole==='사업부장'?'red':'ink'}">${esc(c.byRole||'')}</span> <span class="s">${esc(fmtAt(c.at))}</span>${(c.by===ME.rep||ME.owner||ME.role==='사업부장')&&canWrite?` <button type="button" class="btn xs" data-cmtdel="${esc(c.id)}" aria-label="코멘트 삭제">삭제</button>`:''}</div><div class="cmttext">${esc(c.text)}</div></div>`).join(''):'<p class="empty" style="padding:4px 0">아직 코멘트가 없습니다.</p>'}
+function cmtSecHTML(col,id){return `<h2 style="font-size:16px">팀장 · 사업부장 코멘트</h2><div id="cmtlist">${cmtListHTML(col,id)}</div>${canComment()?`<div class="cmtadd"><textarea id="cmt_text" rows="2" placeholder="이 ${col==='opps'?'영업기회':'활동'}에 대한 코멘트·지시사항을 남기세요" aria-label="코멘트"></textarea><button type="button" class="btn pri sm" data-cmtadd="1">코멘트 등록</button></div>`:'<p class="s">코멘트는 팀장·사업부장이 작성합니다.</p>'}`}
+
 const FB=!!window.__FB;
 const emKey=e=>String(e||'').trim().toLowerCase();
 async function writeAllow(m){if(!FB||!m||!emKey(m.email))return;await db.doc('allow/'+emKey(m.email)).set({name:m.name,role:normRole(m.role),team:m.team||'',owner:!!m.owner,updatedAt:Date.now()})}
@@ -420,10 +434,11 @@ function vHome(){
  <div class="grid2"><div class="sec funnel"><h2>단계별 파이프라인</h2>${st.map(s=>`<div class="row"><b>${esc(s.k)}</b><div class="bar"><i style="width:${s.amt/mx*100}%"></i><i class="w" style="width:${s.w/mx*100}%"></i></div><div class="val"><b>${fmt(s.amt)}</b> · ${s.n}건</div></div>`).join('')}<div class="legend"><span><i style="background:var(--ink)"></i>예상 매출</span><span><i style="background:var(--red)"></i>확도 반영 가중 매출</span></div></div>
  <div><div class="sec" style="margin-bottom:20px"><h2>30일 내 수주 예정</h2>${soon.length?`<ul class="list">${soon.map(o=>`<li data-edit="opps:${esc(o.id)}"><div><div class="t">${esc(o.name)}</div><div class="s">${esc(o.customer)} · ${esc(o.owner)}</div></div><div class="r"><b class="num">${fmt(o.amount)}</b><br>${esc(o.closeDate)}</div></li>`).join('')}</ul>`:'<p class="empty">30일 안에 수주 예정인 기회가 없습니다.</p>'}</div>
  <div class="sec"><h2>결재 대기 품의 <span class="chip warn">${D.approvals.filter(a=>a.status==='결재요청').length}</span></h2>${wait.length?`<ul class="list">${wait.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)} · ${esc(a.requester)} → ${esc(a.approver||'결재자 미지정')}</div></div><div class="r num">${fmt(a.amount)}</div></li>`).join('')}</ul>`:'<p class="empty">대기 중인 품의가 없습니다.</p>'}</div></div></div>
+ ${(()=>{const vis=c=>(c.target==='opps'?D.opps:D.activities).some(x=>x.id===c.targetId);const rc=CMTS.filter(vis).sort((a,b)=>num(b.at)-num(a.at)).slice(0,6);if(!rc.length)return '';const nm=c=>{const x=(c.target==='opps'?D.opps:D.activities).find(y=>y.id===c.targetId);return x?(c.target==='opps'?(x.code?x.code+' ':'')+x.name:'활동 · '+x.title):''};return `<div class="sec" style="margin-bottom:28px"><h2>최근 코멘트 (팀장·사업부장)</h2><ul class="list">${rc.map(c=>`<li data-edit="${esc(c.target)}:${esc(c.targetId)}"><div><div class="t">${esc(nm(c))}</div><div class="s">${esc(c.text.length>80?c.text.slice(0,80)+'…':c.text)}</div></div><div class="r">${esc(c.by||'')} · ${esc(fmtAt(c.at).slice(5))}</div></li>`).join('')}</ul></div>`})()}
  <div class="sec"><h2>최근 영업활동</h2>${actTable(recent)}</div>
  ${sample?`<p class="note">샘플 데이터가 들어 있습니다. <button class="btn sm w adm" data-sample="del">샘플 데이터 모두 삭제</button></p>`:''}`;
 }
-const actTable=rows=>table([{l:'일자',k:'date'},{l:'기회번호',f:r=>codeCell(oppCode(r.oppId))},{l:'유형',f:r=>`<span class="chip">${esc(r.type)}</span>`},{l:'고객사',k:'customer'},{l:'영업기회',f:r=>esc(oppName(r.oppId))||'<span class="s">-</span>'},{l:'제목',f:r=>`<b>${esc(r.title)}</b>`},{l:'다음 액션',k:'next'},{l:'담당',k:'owner'}],rows,'activities');
+const actTable=rows=>table([{l:'일자',k:'date'},{l:'기회번호',f:r=>codeCell(oppCode(r.oppId))},{l:'유형',f:r=>`<span class="chip">${esc(r.type)}</span>`},{l:'고객사',k:'customer'},{l:'영업기회',f:r=>esc(oppName(r.oppId))||'<span class="s">-</span>'},{l:'제목',f:r=>`<b>${esc(r.title)}</b> ${cmtChip('activities',r)}`},{l:'다음 액션',k:'next'},{l:'담당',k:'owner'}],rows,'activities');
 
 
 let QD={};
@@ -439,7 +454,7 @@ function vOppMgmt(){
  return head('영업기회 관리','영업의 출발점입니다. 고객 니즈를 발견하면 여기서 영업기회를 바로 등록하세요. 등록하면 기회번호(예: '+esc(nextCode())+')가 부여되고, 이후 활동·견적·품의·채권·실주가 모두 이 번호에 연결됩니다.')+
  `<form class="quick w" id="quickFrm" novalidate><h2>빠른 등록 <span class="s" style="font-weight:400;font-size:14px">· 다음 기회번호 <span class="code">${esc(nextCode())}</span> · 나머지 항목은 등록 후 상세 화면에서</span></h2><div class="qgrid">${QF.map(([k,l,t,list,w])=>`<label class="fld ${w===2?'w2':''}"><span>${esc(l)}</span>${t==='sel'?`<select id="qd_${k}" data-qd="${k}">${srcOpt.map(x=>`<option value="${esc(x)}" ${x===(QD[k]||'')?'selected':''}>${esc(x||'(선택)')}</option>`).join('')}</select>`:`<input id="qd_${k}" data-qd="${k}" type="${t}" ${k==='owner'&&repLocked()?'readonly title="영업대표는 본인 이름으로만 등록됩니다"':''} ${t==='number'?'step="any" inputmode="decimal"':''} ${list?`list="${list}"`:''} value="${esc(k==='owner'&&repLocked()?ME.rep:(QD[k]??''))}" autocomplete="off">`}</label>`).join('')}</div><div class="pfoot"><button class="btn pri" type="submit">영업기회 등록</button><button class="btn" type="button" data-qfull="1">상세 항목까지 입력</button><span class="err" id="qErr"></span><span class="ok" id="qOk"></span></div></form>
  <div class="filters"><div class="seg"><button data-set="mScope=mine" class="${mine?'on':''}">내 기회</button><button data-set="mScope=all" class="${!mine?'on':''}">${ME.full?'전체':'팀 전체'}</button></div><select data-f="mStage"><option value="">진행 중 전체</option>${STAGES.map(x=>`<option ${x.k===F.mStage?'selected':''}>${esc(x.k)}</option>`).join('')}</select><input id="mQ" data-f="mQ" placeholder="기회번호·기회명·고객 검색" value="${esc(F.mQ||'')}"></div>`+
- table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',f:r=>esc(r.customer)+(r.partner?` <span class="s">via ${esc(r.partner)}</span>`:'')},{l:'단계',f:r=>stageChip(r.stage)},{l:'예상매출',n:1,f:r=>fmt(r.amount)},{l:'수주예정',k:'closeDate'},{l:'활동',n:1,f:r=>cnt('activities',r)},{l:'품의',n:1,f:r=>cnt('approvals',r)},{l:'매출회차',n:1,f:r=>Array.isArray(r.rev)?r.rev.length:0},{l:'최근활동',f:r=>esc(lastAct(r)?.date||'-')},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
+ table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',f:r=>esc(r.customer)+(r.partner?` <span class="s">via ${esc(r.partner)}</span>`:'')},{l:'단계',f:r=>stageChip(r.stage)},{l:'예상매출',n:1,f:r=>fmt(r.amount)},{l:'수주예정',k:'closeDate'},{l:'활동',n:1,f:r=>cnt('activities',r)},{l:'품의',n:1,f:r=>cnt('approvals',r)},{l:'매출회차',n:1,f:r=>Array.isArray(r.rev)?r.rev.length:0},{l:'코멘트',n:1,f:r=>cmtCount('opps',r.id)||''},{l:'최근활동',f:r=>esc(lastAct(r)?.date||'-')},{l:'코멘트',n:1,f:r=>cmtCount('opps',r.id)||''},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
 }
 async function quickSave(e){
  e.preventDefault();const err=$('#qErr'),okm=$('#qOk');err.textContent='';okm.textContent='';
@@ -855,8 +870,9 @@ function openForm(col,id,prefill,banner){
  M={col,id,del:false,onSaved:null};
  let linked='';
  if(col==='approvals'){M.draft={items:clone(itemsOf(o||{})),labor:o&&o.labor&&Array.isArray(o.labor.people)?clone(o.labor):null};linked=`<div id="ctwrap"><div class="linked"><p class="s" style="margin:0">품의 내용(계약 상세)입니다. 입력하면 위의 금액·원가가 자동 계산되고, [저장]을 눌러야 품의와 함께 저장됩니다. ${WIN_KINDS.join('·')}가 승인되면 이 내용이 영업기회의 계약 상세로 반영되고 단계가 수주(계약)로 바뀝니다.</p></div><div class="linked" id="itemsec">${itemsHTML(M.draft)}</div><div class="linked" id="laborsec">${laborHTML(M.draft)}</div>${canWrite?'<div class="pfoot"><button class="btn pri" type="submit">품의 저장</button></div>':''}</div>`}
+ if(col==='activities'&&o)linked=`<div class="linked" id="cmtsec">${cmtSecHTML(col,o.id)}</div>`;
  if(col==='opps'&&o){const acts=D.activities.filter(a=>a.oppId===o.id).sort((a,b)=>(b.date||'')>(a.date||'')?1:-1),aps=D.approvals.filter(a=>a.oppId===o.id);
-  linked=`<div class="linked" id="itemsec">${itemsHTML(o)}</div><div class="linked" id="laborsec">${laborHTML(o)}</div><div class="linked" id="revsec">${revHTML(o)}</div><div class="linked" id="quotes">${quotesHTML(o)}</div><div class="linked"><h2 style="font-size:16px">이 기회번호에 연결된 기록 · 활동 ${acts.length} · 품의 ${aps.length}</h2><ul class="list">${acts.slice(0,6).map(a=>`<li data-edit="activities:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.type)} · ${esc(a.owner)}</div></div><div class="r">${esc(a.date)}</div></li>`).join('')}${aps.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)}</div></div><div class="r">${statChip(a.status)}</div></li>`).join('')}</ul></div>`}
+  linked=`<div class="linked" id="cmtsec">${cmtSecHTML(col,o.id)}</div><div class="linked" id="itemsec">${itemsHTML(o)}</div><div class="linked" id="laborsec">${laborHTML(o)}</div><div class="linked" id="revsec">${revHTML(o)}</div><div class="linked" id="quotes">${quotesHTML(o)}</div><div class="linked"><h2 style="font-size:16px">이 기회번호에 연결된 기록 · 활동 ${acts.length} · 품의 ${aps.length}</h2><ul class="list">${acts.slice(0,6).map(a=>`<li data-edit="activities:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.type)} · ${esc(a.owner)}</div></div><div class="r">${esc(a.date)}</div></li>`).join('')}${aps.map(a=>`<li data-edit="approvals:${esc(a.id)}"><div><div class="t">${esc(a.title)}</div><div class="s">${esc(a.kind)}</div></div><div class="r">${statChip(a.status)}</div></li>`).join('')}</ul></div>`}
  const ro=!canWrite||notMine(col,o),src=o||prefill||{};
  $('#modal').innerHTML=`<div class="ov" data-close="1"><form class="panel" id="frm" novalidate><h2><span>${col==='opps'&&o?.code?`<span class="code" style="font-size:15px;vertical-align:3px">${esc(o.code)}</span> `:''}${esc(s.name)} ${o?'수정':'등록'}${col==='opps'&&!o?' <span class="s" style="font-size:14px">· 저장하면 기회번호가 부여됩니다</span>':''}</span><button type="button" class="btn sm" data-close="1">닫기</button></h2><div class="form">${banner?`<div class="fbanner">${banner}</div>`:''}${o&&col==='opps'&&o.stage==='실주'?`<div class="fbanner">실주 처리된 기회입니다. 사유: ${esc(o.lost?.reason||'미입력')} <button type="button" class="btn xs" data-lost="${esc(o.id)}">실주 정보 보기</button></div>`:''}${s.fields.map(f=>field(f,f.k?src[f.k]:undefined)).join('')}<div class="calc" id="calc" ${['opps','approvals'].includes(col)?'':'hidden'}></div></div><div class="pfoot">${ro?`<span class="s">${notMine(col,o)?'팀원('+esc(o[OWNF[col]]||'')+') 담당 건이라 보기만 가능합니다.':'보기 전용 권한입니다.'}</span>`:`<button class="btn pri" type="submit">저장</button>${o?'<button class="btn" type="button" id="delBtn">삭제</button>':''}`}<span class="err" id="ferr"></span><span class="sp"></span>${o&&col==='opps'&&!ro?`<button class="btn" type="button" data-new="activities" data-opp="${esc(o.id)}">+ 활동 기록</button><button class="btn" type="button" data-new="approvals" data-opp="${esc(o.id)}">+ 품의 작성</button>`:''}</div>${linked}</form></div>`;
  if(ro)$('#frm').querySelectorAll('input,select,textarea').forEach(e=>e.disabled=true);
@@ -974,13 +990,15 @@ async function saveStages(){
 document.addEventListener('click',async e=>{
  if(e.target.closest('#menuBtn')){document.body.classList.toggle('navopen');return}
  if(document.body.classList.contains('navopen')&&!e.target.closest('aside')){document.body.classList.remove('navopen');if(!e.target.closest('a'))return}
- const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-madd],[data-mbulk],[data-resync],[data-mdel],[data-mfrom],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],[data-mkrev],[data-itadd],[data-itdel],[data-lbperiod],[data-lbadd],[data-lbdel],[data-applyct],[data-lbrev],#delBtn');if(!t)return;
+ const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-madd],[data-mbulk],[data-resync],[data-mdel],[data-mfrom],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],[data-mkrev],[data-cmtadd],[data-cmtdel],[data-itadd],[data-itdel],[data-lbperiod],[data-lbadd],[data-lbdel],[data-applyct],[data-lbrev],#delBtn');if(!t)return;
  if(t.dataset.closetab){const id=t.dataset.closetab,i=TABS.indexOf(id);TABS=TABS.filter(x=>x!==id);if(!TABS.length)TABS=['oppmgmt'];saveTabs();if(route()===id){location.hash=TABS[Math.max(0,i-1)]||'oppmgmt'}else{renderTree();renderTabs()}return}
  if(t.dataset.close!==undefined){if(e.target===t||t.tagName==='BUTTON')closeM();return}
  if(t.id==='delBtn'){if(!M.del){M.del=true;t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection(M.col).doc(M.id).delete();closeM()}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
  if(t.dataset.lost){openLost(t.dataset.lost);return}
  if(t.dataset.reopen){const o=RAW.opps.find(x=>x.id===t.dataset.reopen);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,stage:OPEN[OPEN.length-1].k,updatedAt:Date.now()});closeM()}catch(x){$('#ferr').textContent='저장하지 못했습니다.'}return}
  if(t.dataset.mkrev){const o=RAW.opps.find(x=>x.id===t.dataset.mkrev);if(!o)return;const{id,...r}=o;try{await db.collection('opps').doc(id).set({...r,rev:[{label:'일시',month:wonMonth(o)||MONTH,amount:num(o.amount)}],updatedAt:Date.now()})}catch(x){$('#net').textContent='저장하지 못했습니다'}return}
+ if(t.dataset.cmtadd){const tx=$('#cmt_text');const text=(tx?.value||'').trim();if(!text||!M?.id){tx?.focus();return}if(!canComment())return;t.disabled=true;try{await db.collection('comments').doc().set({target:M.col,targetId:M.id,text,by:ME.rep,byRole:ME.owner&&ME.role!=='팀장'?'사업부장':ME.role,at:Date.now()});tx.value='';const l=$('#cmtlist');if(l)l.innerHTML=cmtListHTML(M.col,M.id)}catch(x){if(!denyWrite(x))$('#ferr').textContent='코멘트를 저장하지 못했습니다.'}t.disabled=false;return}
+ if(t.dataset.cmtdel){if(t.dataset.ok!=='1'){t.dataset.ok='1';t.textContent='한 번 더';t.classList.add('red');return}try{await db.collection('comments').doc(t.dataset.cmtdel).delete();const l=$('#cmtlist');if(l&&M)l.innerHTML=cmtListHTML(M.col,M.id)}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
  if(t.dataset.itadd){const o=ctObj();const n=$('#it_name').value.trim();if(!o||!n){$('#it_name').focus();return}const nv=k=>{const v=$(k).value;return v===''?null:num(v)};await ctSave(o,{items:[...itemsOf(o),{kind:$('#it_kind').value,name:n,vendor:$('#it_vendor').value.trim(),qty:nv('#it_qty'),buy:nv('#it_buy'),sell:nv('#it_sell')}]},'itemsec',itemsHTML);$('#it_name')?.focus();return}
  if(t.dataset.itdel){const o=ctObj();if(!o)return;await ctSave(o,{items:itemsOf(o).filter((_,i)=>i!==num(t.dataset.itdel))},'itemsec',itemsHTML);return}
  if(t.dataset.lbperiod){const o=ctObj();if(!o)return;const L=laborOf(o);await ctSave(o,{labor:{...L,start:$('#lb_start').value||L.start,n:Math.max(1,Math.min(36,num($('#lb_n').value)||L.n))}},'laborsec',laborHTML);return}
@@ -1080,7 +1098,7 @@ async function init(){
  try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.id=await u.id();ME.admin=!!(await u.canEdit());try{ME.owner=!!(await u.isOwner())}catch(e){ME.owner=false}try{const me=await u.me?.();ME.email=emKey(me&&me.email)}catch(e){ME.email=''}}}catch(e){}
  refreshMe();
  if(!db){net.textContent='저장소 연결 불가';render();return}
- const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+7;
+ const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+8;
  const timer=setTimeout(()=>{if(done.size<need)net.textContent='데이터 연결이 지연되고 있습니다'},10000);
  const ok=k=>{done.add(k);if(done.size===need){clearTimeout(timer);net.textContent=canWrite?'실시간 공유 중':'보기 전용'}};
  const fail=()=>{clearTimeout(timer);net.textContent='데이터를 불러오지 못했습니다'};
@@ -1091,6 +1109,7 @@ async function init(){
  const upd=()=>{ownerLink();emailLink();refreshMe();render();if(M&&M.id&&SCHEMA[M.col]&&!RAW[M.col].some(x=>x.id===M.id))closeM()};
  cols.forEach(c=>db.collection(c).onSnapshot(s=>{RAW[c]=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok(c);upd()},fail));
  db.collection('goals').onSnapshot(s=>{GOALS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('goals');upd()},fail);
+ db.collection('comments').onSnapshot(s=>{CMTS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('comments');const l=$('#cmtlist');if(l&&M&&M.id)l.innerHTML=cmtListHTML(M.col,M.id);upd()},fail);
  db.collection('commits').onSnapshot(s=>{COMMITS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('commits');upd()},fail);
  db.collection('members').onSnapshot(s=>{MEMBERS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache){membersLoaded=true;ok('members')}upd()},fail);
  db.collection('reps').onSnapshot(s=>{REPS={};s.docs.forEach(d=>REPS[d.id]=d.data());if(!s.metadata.fromCache){repsLoaded=true;ok('reps')}upd()},fail);
