@@ -309,6 +309,8 @@ const saveTabs=()=>{try{localStorage.setItem('sh_tabs',JSON.stringify(TABS))}cat
 
 const teamName=id=>ORGCFG.teams.find(t=>t.id===id)?.name||'';
 let MEMBERS=[],MMSG={ok:'',err:''};
+const repLocked=()=>!ME.full&&ME.role==='영업대표'&&!!ME.rep;
+const OWNER_KEYS=['owner','requester','evaluator'];
 const users=()=>{const byName={};Object.entries(REPS).forEach(([uid,r])=>{const n=String(r.name||'');if(n&&!byName[n])byName[n]=uid});
  const out=MEMBERS.map(m=>({id:byName[m.name]||null,mid:m.id,name:String(m.name||''),role:normRole(m.role),team:m.team||'',email:m.email||'',joined:!!byName[m.name],isOwnerEntry:!!m.owner}));
  const inR=new Set(MEMBERS.map(m=>m.name));
@@ -397,7 +399,7 @@ const actTable=rows=>table([{l:'일자',k:'date'},{l:'기회번호',f:r=>codeCel
 let QD={};
 const QF=[['name','기회명 *','text','',2],['customer','고객사 (End User) *','text','dl_customer'],['partner','매출처 (파트너 경유 시)','text','dl_customer'],['owner','영업담당','text','dl_owner'],['product','솔루션/상품','text','dl_product'],['amount','예상 매출 (백만원)','number',''],['closeDate','예상 수주일','date',''],['source','유입 경로','sel',''],['contact','고객 담당자 / 연락처','text','']];
 function vOppMgmt(){
- if(QD.owner===undefined)QD.owner=ME.rep||'';
+ if(QD.owner===undefined||(!QD._touched&&QD.owner!==ME.rep))QD.owner=ME.rep||'';
  const srcOpt=SCHEMA.opps.fields.find(f=>f.k==='source').opt;
  const mine=F.mScope!=='all';
  let rows=D.opps.filter(o=>(!mine||!ME.rep||o.owner===ME.rep)&&(F.mStage?o.stage===F.mStage:isOpen(o)));
@@ -405,7 +407,7 @@ function vOppMgmt(){
  rows.sort((a,b)=>num(b.createdAt)-num(a.createdAt));
  const cnt=(c,o)=>D[c].filter(x=>x.oppId===o.id).length;
  return head('영업기회 관리','영업의 출발점입니다. 고객 니즈를 발견하면 여기서 영업기회를 바로 등록하세요. 등록하면 기회번호(예: '+esc(nextCode())+')가 부여되고, 이후 활동·견적·품의·채권·실주가 모두 이 번호에 연결됩니다.')+
- `<form class="quick w" id="quickFrm" novalidate><h2>빠른 등록 <span class="s" style="font-weight:400;font-size:14px">· 다음 기회번호 <span class="code">${esc(nextCode())}</span> · 나머지 항목은 등록 후 상세 화면에서</span></h2><div class="qgrid">${QF.map(([k,l,t,list,w])=>`<label class="fld ${w===2?'w2':''}"><span>${esc(l)}</span>${t==='sel'?`<select id="qd_${k}" data-qd="${k}">${srcOpt.map(x=>`<option value="${esc(x)}" ${x===(QD[k]||'')?'selected':''}>${esc(x||'(선택)')}</option>`).join('')}</select>`:`<input id="qd_${k}" data-qd="${k}" type="${t}" ${t==='number'?'step="any" inputmode="decimal"':''} ${list?`list="${list}"`:''} value="${esc(QD[k]??'')}" autocomplete="off">`}</label>`).join('')}</div><div class="pfoot"><button class="btn pri" type="submit">영업기회 등록</button><button class="btn" type="button" data-qfull="1">상세 항목까지 입력</button><span class="err" id="qErr"></span><span class="ok" id="qOk"></span></div></form>
+ `<form class="quick w" id="quickFrm" novalidate><h2>빠른 등록 <span class="s" style="font-weight:400;font-size:14px">· 다음 기회번호 <span class="code">${esc(nextCode())}</span> · 나머지 항목은 등록 후 상세 화면에서</span></h2><div class="qgrid">${QF.map(([k,l,t,list,w])=>`<label class="fld ${w===2?'w2':''}"><span>${esc(l)}</span>${t==='sel'?`<select id="qd_${k}" data-qd="${k}">${srcOpt.map(x=>`<option value="${esc(x)}" ${x===(QD[k]||'')?'selected':''}>${esc(x||'(선택)')}</option>`).join('')}</select>`:`<input id="qd_${k}" data-qd="${k}" type="${t}" ${k==='owner'&&repLocked()?'readonly title="영업대표는 본인 이름으로만 등록됩니다"':''} ${t==='number'?'step="any" inputmode="decimal"':''} ${list?`list="${list}"`:''} value="${esc(k==='owner'&&repLocked()?ME.rep:(QD[k]??''))}" autocomplete="off">`}</label>`).join('')}</div><div class="pfoot"><button class="btn pri" type="submit">영업기회 등록</button><button class="btn" type="button" data-qfull="1">상세 항목까지 입력</button><span class="err" id="qErr"></span><span class="ok" id="qOk"></span></div></form>
  <div class="filters"><div class="seg"><button data-set="mScope=mine" class="${mine?'on':''}">내 기회</button><button data-set="mScope=all" class="${!mine?'on':''}">${ME.full?'전체':ME.role==='팀장'?'팀 전체':'전체'}</button></div><select data-f="mStage"><option value="">진행 중 전체</option>${STAGES.map(x=>`<option ${x.k===F.mStage?'selected':''}>${esc(x.k)}</option>`).join('')}</select><input id="mQ" data-f="mQ" placeholder="기회번호·기회명·고객 검색" value="${esc(F.mQ||'')}"></div>`+
  table([{l:'기회번호',f:r=>codeCell(r.code)},{l:'기회명',f:r=>`<b>${esc(r.name)}</b>`},{l:'고객사',f:r=>esc(r.customer)+(r.partner?` <span class="s">via ${esc(r.partner)}</span>`:'')},{l:'단계',f:r=>stageChip(r.stage)},{l:'예상매출',n:1,f:r=>fmt(r.amount)},{l:'수주예정',k:'closeDate'},{l:'활동',n:1,f:r=>cnt('activities',r)},{l:'품의',n:1,f:r=>cnt('approvals',r)},{l:'매출회차',n:1,f:r=>Array.isArray(r.rev)?r.rev.length:0},{l:'최근활동',f:r=>esc(lastAct(r)?.date||'-')},{l:'담당',k:'owner'},{l:'',f:actBtn}],rows,'opps');
 }
@@ -415,7 +417,7 @@ async function quickSave(e){
  if(!v('name')){err.textContent='기회명을 입력해 주세요.';$('#qd_name').focus();return}
  if(!v('customer')){err.textContent='고객사를 입력해 주세요.';$('#qd_customer').focus();return}
  if(!db){err.textContent='저장소에 연결되지 않았습니다.';return}
- const body={name:v('name'),customer:v('customer'),partner:v('partner'),owner:v('owner')||ME.rep||'',product:v('product'),amount:v('amount')===''?null:num(v('amount')),closeDate:v('closeDate'),source:v('source'),contact:v('contact'),stage:OPEN[0].k,dept:orgName(),code:nextCode(),createdAt:Date.now(),updatedAt:Date.now()};
+ const body={name:v('name'),customer:v('customer'),partner:v('partner'),owner:repLocked()?ME.rep:(v('owner')||ME.rep||''),product:v('product'),amount:v('amount')===''?null:num(v('amount')),closeDate:v('closeDate'),source:v('source'),contact:v('contact'),stage:OPEN[0].k,dept:orgName(),code:nextCode(),createdAt:Date.now(),updatedAt:Date.now()};
  const miss=stageMissing(body,body.stage);if(miss.length){err.textContent=`‘${body.stage}’ 단계 필수 항목: ${miss.join(', ')}`;return}
  try{const ref=db.collection('opps').doc();await ref.set(body);
   if(!RAW.customers.some(c=>c.name===body.customer))await db.collection('customers').doc().set({name:body.customer,kind:'End User',contact:body.contact,owner:body.owner,createdAt:Date.now(),updatedAt:Date.now()});
@@ -704,6 +706,7 @@ function field(f,v){
  else if(f.t==='ta')inp=`<textarea id="${id}" rows="3">${esc(v)}</textarea>`;
  else if(f.t==='sum')inp=`<input id="${id}" type="text" readonly value="${esc(v)}" tabindex="-1">`;
  else if(f.t==='opp'){const o=RAW.opps.find(x=>x.id===v);inp=`<input id="f_oppQ" list="dl_opps" value="${esc(o?oppLabel(o):'')}" placeholder="예: 한빛제조 또는 품질예측" autocomplete="off"><input type="hidden" id="${id}" value="${esc(o?o.id:'')}"><div class="oppcard" id="oppCard"></div>`;return `<label class="fld load w2"><span>${esc(f.l)} <span class="hint">· ${esc(f.hint||'고객사나 기회명으로 검색해 고르세요')}</span></span>${inp}</label>`}
+ else if(OWNER_KEYS.includes(f.k)&&repLocked()){inp=`<input id="${id}" type="text" readonly value="${esc(blank(v)?ME.rep:v)}" title="영업대표는 본인 이름으로만 등록됩니다">`}
  else{const t=f.t==='num'?'number" step="any" inputmode="decimal':f.t==='date'?'date':'text';const l=f.t==='cust'?'dl_customer':f.t==='list'?'dl_'+f.src:'';inp=`<input id="${id}" type="${t}" value="${esc(v)}" ${l?`list="${l}"`:''} autocomplete="off">`}
  return `<label class="fld ${f.w===2?'w2':''}"><span>${esc(f.l)}${f.req?' *':''} ${f.hint?`<span class="hint">· ${esc(f.hint)}</span>`:''}</span>${inp}</label>`;
 }
@@ -753,6 +756,7 @@ async function save(e){
  e.preventDefault();const s=SCHEMA[M.col],o={};const err=$('#ferr');
  if($('#f_oppQ')&&$('#f_oppQ').value.trim()&&!$('#f_oppId').value){err.textContent='영업기회는 목록에서 골라 주세요.';$('#f_oppQ').focus();return}
  for(const f of s.fields){if(!f.k)continue;let v=$('#f_'+f.k).value.trim();if(f.t==='num'||f.t==='sum')v=v===''?null:num(v);if(f.req&&blank(v)){err.textContent=`${f.l}을(를) 입력해 주세요.`;$('#f_'+f.k).focus();return}o[f.k]=v}
+ if(repLocked()&&!M.id)OWNER_KEYS.forEach(k=>{if(k in o)o[k]=ME.rep});
  if(M.col==='opps'){const miss=stageMissing(o,o.stage);if(miss.length&&o.stage!=='실주'){err.textContent=`‘${o.stage}’ 단계로 저장하려면 ${miss.join(', ')}을(를) 입력해 주세요.`;return}}
  if(o.oppId&&'customer' in o&&!o.customer)o.customer=RAW.opps.find(x=>x.id===o.oppId)?.customer||'';
  const old=M.id?RAW[M.col].find(x=>x.id===M.id):null;const{id:_i,...rest}=old||{};
@@ -905,7 +909,7 @@ document.addEventListener('change',async e=>{
 });
 function ogEdit(t){const[a,i]=t.dataset.og.split(':');if(!ORGD)return;if(a==='name')ORGD.name=t.value;if(a==='t'&&ORGD.teams[num(i)])ORGD.teams[num(i)].name=t.value}
 function stEdit(t){const[a,i,k]=t.dataset.st.split(':');const s=STG[num(i)];if(!s)return;if(a==='k')s.k=t.value;if(a==='p')s.p=t.value;if(a==='r'){s.req=s.req.filter(x=>x!==k);if(t.checked)s.req.push(k)}}
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset.qd){QD[t.dataset.qd]=t.value;return}if(t.dataset.st){stEdit(t);return}if(t.dataset.og){ogEdit(t);return}if(t.id==='f_oppQ'){loadOpp(true);return}if(t.dataset.f&&t.tagName==='INPUT'){F[t.dataset.f]=t.value;render()}if(t.closest('#frm'))calc()});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.qd){QD[t.dataset.qd]=t.value;if(t.dataset.qd==='owner')QD._touched=1;return}if(t.dataset.st){stEdit(t);return}if(t.dataset.og){ogEdit(t);return}if(t.id==='f_oppQ'){loadOpp(true);return}if(t.dataset.f&&t.tagName==='INPUT'){F[t.dataset.f]=t.value;render()}if(t.closest('#frm'))calc()});
 document.addEventListener('submit',e=>{if(e.target.id==='quickFrm')quickSave(e);if(e.target.id==='frm')save(e);if(e.target.id==='lostFrm')saveLost(e)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(M)closeM();document.body.classList.remove('navopen')}if(e.key==='Enter'&&e.target.id==='reg_name'){e.preventDefault();$('[data-reg]')?.click()}});
 addEventListener('hashchange',()=>{closeM();document.body.classList.remove('navopen');renderAll();scrollTo(0,0)});
@@ -915,7 +919,7 @@ async function init(){
  refreshMe();renderAll();const net=$('#net');
  if(!window.claude?.use){net.textContent='오프라인 미리보기';return}
  try{db=await window.claude.use('db')}catch(e){db=null}
- try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.admin=!!(await u.canEdit());ME.owner=!!(await u.isOwner());ME.id=await u.id()}}catch(e){}
+ try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.id=await u.id();ME.admin=!!(await u.canEdit());try{ME.owner=!!(await u.isOwner())}catch(e){ME.owner=false}}}catch(e){}
  refreshMe();
  if(!db){net.textContent='저장소 연결 불가';render();return}
  const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+7;
