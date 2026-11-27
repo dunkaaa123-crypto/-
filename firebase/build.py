@@ -29,7 +29,7 @@ def main():
             m = re.search(r'["\']?' + k + r'["\']?\s*:\s*["\']([^"\']+)["\']', cfg_raw)
             if m:
                 cfg[k] = m.group(1).strip()
-        missing = [k for k in ('apiKey', 'authDomain', 'projectId', 'appId') if k not in cfg]
+        missing = [k for k in ('apiKey', 'authDomain', 'projectId') if k not in cfg]
         if missing:
             sys.exit('FIREBASE_WEB_CONFIG 에서 다음 항목을 찾지 못했습니다: ' + ', '.join(missing) +
                      ' — Firebase 콘솔 > 프로젝트 설정 > 내 앱의 firebaseConfig 블록을 다시 복사해 넣어 주세요.')
