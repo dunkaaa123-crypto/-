@@ -11,7 +11,7 @@
 
 ## 1단계. Firebase 프로젝트 만들기 (10분, 한 번만)
 
-1. https://console.firebase.google.com 에 회사 구글 계정으로 로그인 → **프로젝트 추가** → 이름 예: `kolon-saleshub` → Google 애널리틱스는 꺼도 됩니다.
+1. https://console.firebase.google.com 에 회사 구글 계정으로 로그인 → **프로젝트 추가** → 이름 예: `my-saleshub` → Google 애널리틱스는 꺼도 됩니다.
 2. 왼쪽 메뉴 **빌드 › Authentication** → 시작하기 → **로그인 방법**에서 **이메일/비밀번호** 사용 설정 → 저장.
    - **템플릿** 탭에서 언어를 **한국어**로 바꾸면 인증·비밀번호 재설정 메일이 한국어로 갑니다.
 3. 왼쪽 메뉴 **빌드 › Firestore Database** → 데이터베이스 만들기 → 위치 **asia-northeast3 (서울)** → **프로덕션 모드**로 시작.
@@ -31,7 +31,7 @@ GitHub 저장소 → **Settings › Secrets and variables › Actions › New re
 
 | 이름 | 넣을 값 |
 |---|---|
-| `FIREBASE_PROJECT_ID` | 1-6의 프로젝트 ID (예: `kolon-saleshub`) |
+| `FIREBASE_PROJECT_ID` | 1-6의 프로젝트 ID (예: `my-saleshub`) |
 | `FIREBASE_WEB_CONFIG` | 1-4에서 복사한 `firebaseConfig` 블록 전체 |
 | `FIREBASE_SERVICE_ACCOUNT` | 1-5 JSON 파일 내용 전체 |
 | `OWNER_EMAIL` | 소유자(관리자) 회사 메일. 여러 명이면 쉼표로 구분 |
@@ -53,9 +53,9 @@ GitHub 저장소 → **Actions** 탭 → 왼쪽 **Firebase 배포 (영업관리 
 2. **시스템 관리 › 조직·팀 설정**에서 사업부·팀 이름을 확인합니다.
 3. **시스템 관리 › 사용자·권한 › 여러 명 한 번에 붙여넣기**에 `이름, 팀 이름, 역할, 회사메일` 순서로 붙여 넣습니다.
    ```
-   이경국, , 사업부장, kklee@회사도메인.com
-   박현진, AX Analytics, 팀장, ...
-   박기용, AX Analytics, 영업대표, ...
+   홍길동, , 사업부장, owner@company.com
+   김팀장, 영업1팀, 팀장, lead@company.com
+   이대표, 영업1팀, 영업대표, rep@company.com
    ```
    명단의 이메일이 곧 로그인 허용 목록입니다. 이메일은 표에서 바로 고칠 수도 있습니다. 이상하면 **로그인 허용 목록 동기화** 버튼을 누릅니다.
 4. 팀원에게 사이트 주소를 보내고 "처음 사용에서 비밀번호를 만들고 메일 인증을 하라"고 안내합니다. 로그인하면 명단의 이름·팀·역할이 자동으로 적용됩니다.

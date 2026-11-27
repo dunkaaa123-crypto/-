@@ -2,7 +2,7 @@ name: Firebase 배포 (영업관리 Sales Hub)
 
 # GitHub 저장소 > Actions > "Firebase 배포" > Run workflow 버튼으로 실행합니다.
 # 필요한 Secrets (Settings > Secrets and variables > Actions):
-#   FIREBASE_PROJECT_ID       Firebase 프로젝트 ID (예: kolon-saleshub)
+#   FIREBASE_PROJECT_ID       Firebase 프로젝트 ID (예: my-saleshub)
 #   FIREBASE_WEB_CONFIG       콘솔 > 프로젝트 설정 > 내 앱(웹)의 firebaseConfig 내용
 #   FIREBASE_SERVICE_ACCOUNT  콘솔 > 프로젝트 설정 > 서비스 계정 > 새 비공개 키(JSON) 파일 내용 전체
 #   OWNER_EMAIL               소유자(관리자) 이메일, 여러 명이면 쉼표로 구분
