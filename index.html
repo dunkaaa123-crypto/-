@@ -152,6 +152,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--ink);border-bottom:0}
 @media(prefers-reduced-motion:reduce){aside,aside summary::before{transition:none}}
 #me{font-size:13px;font-weight:700;white-space:nowrap}
 #me .chip{margin-left:4px}
+.addm select,.addm input{min-height:38px}
 .gtable{font-size:13px}
 .gtable th,.gtable td{padding:5px 4px}
 .gtable .gname{white-space:nowrap;min-width:9em}
@@ -307,12 +308,17 @@ let TABS=['oppmgmt'];try{const s=JSON.parse(localStorage.getItem('sh_tabs')||'nu
 const saveTabs=()=>{try{localStorage.setItem('sh_tabs',JSON.stringify(TABS))}catch(e){}};
 
 const teamName=id=>ORGCFG.teams.find(t=>t.id===id)?.name||'';
-const users=()=>Object.entries(REPS).map(([id,r])=>({id,name:String(r.name||''),role:normRole(ROLES[id]?.role),team:ROLES[id]?.team||''}));
+let MEMBERS=[],MMSG={ok:'',err:''};
+const users=()=>{const byName={};Object.entries(REPS).forEach(([uid,r])=>{const n=String(r.name||'');if(n&&!byName[n])byName[n]=uid});
+ const out=MEMBERS.map(m=>({id:byName[m.name]||null,mid:m.id,name:String(m.name||''),role:normRole(m.role),team:m.team||'',email:m.email||'',joined:!!byName[m.name]}));
+ const inR=new Set(MEMBERS.map(m=>m.name));
+ Object.entries(REPS).forEach(([uid,r])=>{const n=String(r.name||'');if(n&&!inR.has(n))out.push({id:uid,mid:null,name:n,role:normRole(ROLES[uid]?.role),team:ROLES[uid]?.team||'',email:'',joined:true})});
+ return out};
 const teamOf=name=>{const u=users().find(x=>x.name===name);return u?u.team:''};
 const myLeader=()=>{const us=users();const l=ME.role==='팀장'||ME.role==='사업부장'?us.find(u=>u.role==='사업부장'&&u.id!==ME.id):(us.find(u=>u.role==='팀장'&&u.team&&u.team===ME.team)||us.find(u=>u.role==='사업부장'));return l?l.name:''};
 function refreshMe(){
  const me=ME.id?users().find(u=>u.id===ME.id):null;
- ME.rep=me?me.name:'';ME.role=me?me.role:(ME.id&&ROLES[ME.id]?normRole(ROLES[ME.id].role):'영업대표');ME.team=ME.id&&ROLES[ME.id]?.team||'';
+ ME.rep=me?me.name:'';ME.role=me?me.role:(ME.id&&ROLES[ME.id]?normRole(ROLES[ME.id].role):'영업대표');ME.team=me?me.team:'';
  ME.full=ME.owner||!ME.id||ME.role==='사업부장';
  if(!ME.full)F.scope='';
  if(F.scope&&!ORGCFG.teams.some(t=>t.id===F.scope))F.scope='';
@@ -619,13 +625,21 @@ function vVendorSum(){
 }
 
 function vUsers(){
- const rows=users().sort((a,b)=>(teamName(a.team)||'~').localeCompare(teamName(b.team)||'~','ko')||ROLES_L.indexOf(b.role)-ROLES_L.indexOf(a.role)||a.name.localeCompare(b.name,'ko'));
+ const us=users(),tIdx=id=>{const i=ORGCFG.teams.findIndex(t=>t.id===id);return i<0?99:i};
+ const roster=us.filter(u=>u.mid).sort((a,b)=>(b.role==='사업부장')-(a.role==='사업부장')||tIdx(a.team)-tIdx(b.team)||ROLES_L.indexOf(b.role)-ROLES_L.indexOf(a.role)||a.name.localeCompare(b.name,'ko'));
+ const extra=us.filter(u=>!u.mid);
  const scope=u=>u.role==='사업부장'?esc(orgName())+' 전체':u.role==='팀장'?(u.team?esc(teamName(u.team))+' 팀원 전체':'<span style="color:var(--red)">팀 지정 필요</span>'):'본인 담당 건';
- const noTeam=rows.filter(u=>u.role!=='사업부장'&&!u.team).length;
- return head('사용자 · 권한',`각 영업대표가 처음 접속해 이름을 등록하면 이 목록에 나타납니다. 팀과 역할은 관리자만 지정합니다. 팀은 ‘조직 · 팀 설정’에서 추가·변경합니다.`,ME.admin?'<a class="btn" href="#org">조직 · 팀 설정</a>':'')+
- `<div class="kpis">${ROLES_L.map(r=>kpi(r,rows.filter(x=>x.role===r).length,'명')).join('')}${kpi('등록 인원',rows.length,'명')}${kpi('팀 미지정',noTeam,'명',noTeam?'alert':'')}</div>
- <div class="sec">${rows.length?`<div class="scroll"><table class="stack"><thead><tr><th>영업담당 이름</th><th>팀</th><th>역할</th><th>볼 수 있는 범위</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr style="cursor:default"><td data-l="이름"><b>${esc(r.name)}</b>${r.id===ME.id?' <span class="chip ink">나</span>':''}</td><td data-l="팀">${ME.admin?`<select data-uteam="${esc(r.id)}" aria-label="팀"><option value="">(팀 없음)</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}" ${t.id===r.team?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`:esc(teamName(r.team)||'-')}</td><td data-l="역할">${ME.admin?`<select data-urole="${esc(r.id)}" aria-label="역할">${ROLES_L.map(x=>`<option ${x===r.role?'selected':''}>${x}</option>`).join('')}</select>`:esc(r.role)}</td><td data-l="범위">${scope(r)}</td><td data-l="">${ME.admin&&r.id!==ME.id?`<button class="btn xs" data-unreg="${esc(r.id)}">목록에서 삭제</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">아직 등록한 사람이 없습니다. 링크를 공유받은 사람이 처음 접속하면 이름 등록 안내가 나옵니다.</p>'}</div>
- <p class="note">권한: 영업대표는 본인 담당(요청자·결재자 포함) 건만, 팀장은 같은 팀 팀원의 건 전체를, 사업부장과 관리자는 사업부 전체를 봅니다. 사업부장은 오른쪽 위에서 팀별로 좁혀 볼 수 있습니다. 고객·협력업체 정보는 모두가 공유합니다. 이 범위는 화면에서 걸러 보여 주는 방식이고, 팀·역할 지정은 관리자만 바꿀 수 있도록 저장소 규칙으로 막혀 있습니다.</p>`;
+ const noTeam=roster.filter(u=>u.role!=='사업부장'&&!u.team).length;
+ const tsel=(attr,id,v)=>`<select ${attr}="${esc(id)}" aria-label="팀"><option value="">(팀 없음)</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}" ${t.id===v?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`;
+ const rsel=(attr,id,v)=>`<select ${attr}="${esc(id)}" aria-label="역할">${ROLES_L.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('')}</select>`;
+ const A=ME.admin;
+ return head('사용자 · 권한','관리자가 사업부장·팀장·팀원 명단을 미리 넣어 둡니다. 각자 처음 접속해 명단에서 자기 이름을 고르면 지정된 팀과 역할이 바로 적용됩니다.',A?'<a class="btn" href="#org">조직 · 팀 설정</a>':'')+
+ `<div class="kpis">${ROLES_L.map(r=>kpi(r,roster.filter(x=>x.role===r).length,'명')).join('')}${kpi('명단 인원',roster.length,'명')}${kpi('접속 완료',roster.filter(u=>u.joined).length,'명')}${kpi('팀 미지정',noTeam,'명',noTeam?'alert':'')}</div>
+ ${A?`<div class="sec" style="margin-bottom:24px"><h2>명단 추가</h2><div class="qadd addm"><input id="m_name" placeholder="이름 (영업담당 이름과 같게)" aria-label="이름" autocomplete="off"><select id="m_team" aria-label="팀"><option value="">(팀 없음)</option>${ORGCFG.teams.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select><select id="m_role" aria-label="역할">${ROLES_L.map(x=>`<option>${x}</option>`).join('')}</select><input id="m_email" placeholder="회사 이메일 (선택)" aria-label="이메일" autocomplete="off"><button class="btn pri" type="button" data-madd="1">명단에 추가</button></div>
+ <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">여러 명 한 번에 붙여넣기</summary><p class="s">한 줄에 한 명씩 <b>이름, 팀 이름, 역할</b> 순서로 적습니다. 쉼표나 탭으로 구분하고, 엑셀에서 세 칸을 복사해 붙여 넣어도 됩니다. 팀 이름은 ‘조직 · 팀 설정’의 이름과 같아야 하며, 사업부장은 팀을 비워 둡니다.</p><textarea id="m_bulk" rows="7" style="width:100%;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)" placeholder="이경국, , 사업부장&#10;홍길동, ${esc(ORGCFG.teams[0]?.name||'영업1팀')}, 팀장&#10;김철수, ${esc(ORGCFG.teams[0]?.name||'영업1팀')}, 영업대표"></textarea><button class="btn" type="button" data-mbulk="1" style="margin-top:6px">일괄 추가</button></details><span class="err" id="mErr">${esc(MMSG.err)}</span> <span class="ok" id="mOk">${esc(MMSG.ok)}</span></div>`:''}
+ <div class="sec"><h2>명단</h2>${roster.length?`<div class="scroll"><table class="stack"><thead><tr><th>이름</th><th>팀</th><th>역할</th><th>이메일</th><th>접속</th><th>볼 수 있는 범위</th><th></th></tr></thead><tbody>${roster.map(r=>`<tr style="cursor:default"><td data-l="이름"><b>${esc(r.name)}</b>${r.id&&r.id===ME.id?' <span class="chip ink">나</span>':''}</td><td data-l="팀">${A?tsel('data-mteam',r.mid,r.team):esc(teamName(r.team)||'-')}</td><td data-l="역할">${A?rsel('data-mrole',r.mid,r.role):esc(r.role)}</td><td data-l="이메일">${esc(r.email||'-')}</td><td data-l="접속">${r.joined?'<span class="chip ok">접속함</span>':'<span class="chip">미접속</span>'}</td><td data-l="범위">${scope(r)}</td><td data-l="">${A?`<button class="btn xs" data-mdel="${esc(r.mid)}">명단에서 삭제</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">명단이 비어 있습니다. 위에서 사업부장·팀장·팀원을 추가하세요.</p>'}</div>
+ ${extra.length?`<div class="sec" style="margin-top:24px"><h2>명단에 없는 접속자 <span class="chip warn">${extra.length}</span></h2><p class="s">명단에 없는 이름으로 등록한 사람입니다. 명단에 추가해야 팀·역할을 관리할 수 있습니다. 오타라면 삭제 후 다시 등록하게 하세요.</p><div class="scroll"><table class="stack"><thead><tr><th>등록한 이름</th><th>팀</th><th>역할</th><th></th></tr></thead><tbody>${extra.map(r=>`<tr style="cursor:default"><td data-l="이름"><b>${esc(r.name)}</b>${r.id===ME.id?' <span class="chip ink">나</span>':''}</td><td data-l="팀">${A?tsel('data-uteam',r.id,r.team):esc(teamName(r.team)||'-')}</td><td data-l="역할">${A?rsel('data-urole',r.id,r.role):esc(r.role)}</td><td data-l="" style="white-space:nowrap">${A?`<button class="btn xs" data-mfrom="${esc(r.id)}">명단에 추가</button> ${r.id!==ME.id?`<button class="btn xs" data-unreg="${esc(r.id)}">등록 취소</button>`:''}`:''}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+ <p class="note">권한: 영업대표는 본인 담당(요청자·결재자 포함) 건만, 팀장은 같은 팀 팀원의 건 전체를, 사업부장과 소유자는 사업부 전체를 봅니다. 명단의 이름은 영업기회·활동의 ‘영업담당’ 이름과 같아야 실적이 연결됩니다. 명단·팀·역할은 관리자만 바꿀 수 있도록 저장소 규칙으로 막혀 있고, 조회 범위는 화면에서 걸러 보여 주는 방식입니다.</p>`;
 }
 let ORGD=null;
 function vOrg(){
@@ -672,9 +686,10 @@ function renderTabs(){
 }
 function render(){
  const r=route(),a=document.activeElement,aid=a&&a.id,pos=a&&a.selectionStart;
- if((r==='stages'&&a&&a.dataset&&a.dataset.st)||(r==='org'&&a&&a.dataset&&a.dataset.og)||(a&&a.dataset&&(a.dataset.goal||a.dataset.commit)))return;
+ if((r==='stages'&&a&&a.dataset&&a.dataset.st)||(r==='org'&&a&&a.dataset&&a.dataset.og)||(a&&a.dataset&&(a.dataset.goal||a.dataset.commit))||(a&&['m_name','m_email','m_bulk','reg_name'].includes(a.id)))return;
  let html='';try{html=VIEWS[r]()}catch(e){html=`<p class="err">화면을 그리는 중 오류가 발생했습니다: ${esc(e.message)}</p>`}
- const reg=db&&ME.id&&repsLoaded&&!ME.rep?`<div class="reg"><b>처음 오셨네요. 영업담당 이름을 등록해 주세요.</b><span class="s">기회·활동의 ‘영업담당’에 쓰이는 이름입니다. 같은 이름의 기록이 내 담당 건으로 보입니다.</span><input id="reg_name" list="dl_owner" placeholder="예: 홍길동" autocomplete="off"><button class="btn pri" data-reg="1">등록</button></div>`:'';
+ const free=users().filter(u=>u.mid&&!u.joined);
+ const reg=db&&ME.id&&repsLoaded&&!ME.rep?`<div class="reg"><b>처음 오셨네요. 명단에서 본인 이름을 골라 주세요.</b><span class="s">${free.length?'관리자가 등록한 명단입니다. 이름을 고르면 지정된 팀과 역할이 바로 적용됩니다.':'아직 등록된 명단이 없습니다. 이름을 입력하면 관리자가 팀과 역할을 지정합니다.'}</span>${free.length?`<select id="reg_pick" aria-label="내 이름"><option value="">이름 선택</option>${free.map(u=>`<option value="${esc(u.name)}">${esc(u.name)} · ${esc(u.role)}${u.team?' · '+esc(teamName(u.team)):''}</option>`).join('')}<option value="__other">명단에 없음 (직접 입력)</option></select>`:''}<input id="reg_name" placeholder="예: 홍길동" autocomplete="off" ${free.length?'hidden':''} aria-label="이름 직접 입력"><button class="btn pri" data-reg="1">등록</button><span class="err" id="regErr"></span></div>`:'';
  $('#main').innerHTML=(db?'':`<div class="banner">데이터 저장소에 연결되지 않아 조회·저장이 되지 않습니다. claude.ai에서 로그인한 상태로 열어 주세요.</div>`)+reg+html+dl();
  if(aid){const el=document.getElementById(aid);if(el&&!el.closest('#modal')){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}}
 }
@@ -816,7 +831,7 @@ async function saveStages(){
 document.addEventListener('click',async e=>{
  if(e.target.closest('#menuBtn')){document.body.classList.toggle('navopen');return}
  if(document.body.classList.contains('navopen')&&!e.target.closest('aside')){document.body.classList.remove('navopen');if(!e.target.closest('a'))return}
- const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],#delBtn');if(!t)return;
+ const t=e.target.closest('[data-close],[data-new],[data-edit],[data-flow],[data-set],[data-sample],[data-closetab],[data-lost],[data-reopen],[data-qadd],[data-qdel],[data-reg],[data-unreg],[data-madd],[data-mbulk],[data-mdel],[data-mfrom],[data-stg],[data-org],[data-qfull],[data-rvadd],[data-rvdel],[data-rvsplit],#delBtn');if(!t)return;
  if(t.dataset.closetab){const id=t.dataset.closetab,i=TABS.indexOf(id);TABS=TABS.filter(x=>x!==id);if(!TABS.length)TABS=['oppmgmt'];saveTabs();if(route()===id){location.hash=TABS[Math.max(0,i-1)]||'oppmgmt'}else{renderTree();renderTabs()}return}
  if(t.dataset.close!==undefined){if(e.target===t||t.tagName==='BUTTON')closeM();return}
  if(t.id==='delBtn'){if(!M.del){M.del=true;t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection(M.col).doc(M.id).delete();closeM()}catch(x){$('#ferr').textContent='삭제하지 못했습니다.'}return}
@@ -833,7 +848,19 @@ document.addEventListener('click',async e=>{
   await saveRev(o,rev);return}
  if(t.dataset.qadd){const o=RAW.opps.find(x=>x.id===M?.id);const amt=$('#q_amt').value;if(!o||amt===''){$('#q_amt').focus();return}const{id,...r}=o;const quotes=[...(Array.isArray(o.quotes)?o.quotes:[]),{date:$('#q_date').value||TODAY,amount:num(amt),memo:$('#q_memo').value.trim()}].sort((a,b)=>a.date>b.date?1:-1);try{await db.collection('opps').doc(id).set({...r,quotes,updatedAt:Date.now()});$('#quotes').innerHTML=quotesHTML({quotes})}catch(x){$('#ferr').textContent='견적을 저장하지 못했습니다.'}return}
  if(t.dataset.qdel){const o=RAW.opps.find(x=>x.id===M?.id);if(!o)return;const{id,...r}=o;const quotes=(o.quotes||[]).filter((_,i)=>i!==num(t.dataset.qdel));try{await db.collection('opps').doc(id).set({...r,quotes,updatedAt:Date.now()});$('#quotes').innerHTML=quotesHTML({quotes})}catch(x){}return}
- if(t.dataset.reg){const n=$('#reg_name').value.trim();if(!n){$('#reg_name').focus();return}try{await db.doc('reps/'+ME.id).set({name:n,createdAt:Date.now()})}catch(x){$('#net').textContent='이름을 등록하지 못했습니다'}return}
+ if(t.dataset.reg){const pk=$('#reg_pick')?.value;const n=(pk&&pk!=='__other'?pk:$('#reg_name').value).trim();if(!n){($('#reg_pick')&&pk!=='__other'?$('#reg_pick'):$('#reg_name')).focus();return}
+  if(Object.entries(REPS).some(([uid,r])=>uid!==ME.id&&String(r.name)===n)){$('#regErr').textContent='이미 다른 사람이 등록한 이름입니다. 관리자에게 문의하세요.';return}
+  try{await db.doc('reps/'+ME.id).set({name:n,createdAt:Date.now()})}catch(x){$('#net').textContent='이름을 등록하지 못했습니다'}return}
+ if(t.dataset.madd){const n=$('#m_name').value.trim();MMSG={ok:'',err:''};if(!n){$('#m_name').focus();return}if(MEMBERS.some(m=>m.name===n)){MMSG.err=`‘${n}’은(는) 이미 명단에 있습니다.`;render();return}
+  try{await db.collection('members').doc().set({name:n,team:$('#m_team').value,role:$('#m_role').value,email:$('#m_email').value.trim(),createdAt:Date.now()});MMSG.ok=`${n} 추가됨`;render();$('#m_name')?.focus()}catch(x){MMSG.err='추가하지 못했습니다 (관리자 권한 필요)';render()}return}
+ if(t.dataset.mbulk){MMSG={ok:'',err:''};const lines=$('#m_bulk').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const bad=[],add=[],seen=new Set(MEMBERS.map(m=>m.name));
+  for(const l of lines){const c=l.split(/\t|,/).map(x=>x.trim());const n=c[0];if(!n)continue;if(seen.has(n)){bad.push(`${n}: 이미 명단에 있음`);continue}
+   const tn=c[1]||'',tm=tn?ORGCFG.teams.find(t=>t.name===tn):null;if(tn&&!tm){bad.push(`${n}: ‘${tn}’ 팀이 없음`);continue}
+   const rl=c[2]||'영업대표';if(!ROLES_L.includes(rl)&&rl!=='본부장'){bad.push(`${n}: ‘${rl}’ 역할을 모름 (사업부장/팀장/영업대표)`);continue}
+   seen.add(n);add.push({name:n,team:tm?tm.id:'',role:normRole(rl),email:c[3]||''})}
+  try{for(const m of add)await db.collection('members').doc().set({...m,createdAt:Date.now()});const keep=$('#m_bulk').value;MMSG={ok:`${add.length}명 추가됨`,err:bad.length?'추가하지 못한 줄: '+bad.join(' / '):''};document.activeElement?.blur();render();if(bad.length){const d=$('main details');if(d){d.open=true;$('#m_bulk').value=keep.split(/\r?\n/).filter(l=>bad.some(b=>b.startsWith((l.split(/\t|,/)[0]||'').trim()+':'))).join('\n')}}}catch(x){MMSG.err='추가하지 못했습니다 (관리자 권한 필요)';render()}return}
+ if(t.dataset.mdel){const m=MEMBERS.find(x=>x.id===t.dataset.mdel);if(!m)return;if(t.dataset.ok!=='1'){t.dataset.ok='1';t.textContent='한 번 더 누르면 삭제';t.classList.add('red');return}try{await db.collection('members').doc(m.id).delete()}catch(x){$('#net').textContent='삭제하지 못했습니다'}return}
+ if(t.dataset.mfrom){const r=REPS[t.dataset.mfrom];if(!r)return;const n=String(r.name||'');try{await db.collection('members').doc().set({name:n,team:ROLES[t.dataset.mfrom]?.team||'',role:normRole(ROLES[t.dataset.mfrom]?.role),email:'',createdAt:Date.now()})}catch(x){$('#net').textContent='추가하지 못했습니다'}return}
  if(t.dataset.unreg){try{await db.doc('reps/'+t.dataset.unreg).delete();await db.doc('roles/'+t.dataset.unreg).delete()}catch(x){$('#net').textContent='삭제하지 못했습니다'}return}
  if(t.dataset.qfull){const pre={...QD,stage:OPEN[0].k};if(pre.amount!==undefined&&pre.amount!=='')pre.amount=num(pre.amount);openForm('opps',null,pre);M.onSaved=async()=>{QD={owner:ME.rep||''};render()};return}
  if(t.dataset.org){const[a,i]=t.dataset.org.split(':');const n=num(i);if(!ORGD)return;
@@ -862,6 +889,8 @@ document.addEventListener('change',async e=>{
   if(st==='실주'){render();openLost(o.id);return}
   const miss=stageMissing(o,st);if(miss.length){render();openForm('opps',o.id);$('#f_stage').value=st;calc();$('#ferr').textContent=`‘${st}’ 단계로 옮기려면 ${miss.join(', ')}을(를) 입력하고 저장하세요.`;return}
   try{await setStage(o.id,st)}catch(x){$('#net').textContent='저장하지 못했습니다';render()}return}
+ if(t.id==='reg_pick'){const el=$('#reg_name');if(el){el.hidden=t.value!=='__other';if(!el.hidden)el.focus()}return}
+ if(t.dataset.mrole||t.dataset.mteam){const id=t.dataset.mrole||t.dataset.mteam,m=MEMBERS.find(x=>x.id===id);if(!m)return;const{id:_,...r}=m;const b={...r,updatedAt:Date.now()};if(t.dataset.mrole)b.role=t.value;else b.team=t.value;try{await db.collection('members').doc(id).set(b)}catch(x){$('#net').textContent='저장하지 못했습니다 (관리자 권한 필요)';render()}return}
  if(t.dataset.urole||t.dataset.uteam){const uid=t.dataset.urole||t.dataset.uteam,cur=ROLES[uid]||{};const b={role:normRole(cur.role),team:cur.team||'',updatedAt:Date.now()};if(t.dataset.urole)b.role=t.value;else b.team=t.value;try{await db.doc('roles/'+uid).set(b)}catch(x){$('#net').textContent='저장하지 못했습니다 (관리자 권한 필요)';render()}return}
  if(t.dataset.qd){QD[t.dataset.qd]=t.value;return}
  if(t.dataset.goal){const[tg,i]=t.dataset.goal.split('|');await saveGoal(tg,num(i),t.value);return}
@@ -888,7 +917,7 @@ async function init(){
  try{const u=await window.claude.use('user');if(u){const c=await u.can('data.write');if(c===false){canWrite=false;document.body.classList.add('ro')}ME.admin=!!(await u.canEdit());ME.owner=!!(await u.isOwner());ME.id=await u.id()}}catch(e){}
  refreshMe();
  if(!db){net.textContent='저장소 연결 불가';render();return}
- const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+6;
+ const cols=Object.keys(SCHEMA),done=new Set(),need=cols.length+7;
  const timer=setTimeout(()=>{if(done.size<need)net.textContent='데이터 연결이 지연되고 있습니다'},10000);
  const ok=k=>{done.add(k);if(done.size===need){clearTimeout(timer);net.textContent=canWrite?'실시간 공유 중':'보기 전용'}};
  const fail=()=>{clearTimeout(timer);net.textContent='데이터를 불러오지 못했습니다'};
@@ -896,6 +925,7 @@ async function init(){
  cols.forEach(c=>db.collection(c).onSnapshot(s=>{RAW[c]=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok(c);upd()},fail));
  db.collection('goals').onSnapshot(s=>{GOALS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('goals');upd()},fail);
  db.collection('commits').onSnapshot(s=>{COMMITS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('commits');upd()},fail);
+ db.collection('members').onSnapshot(s=>{MEMBERS=s.docs.map(d=>({...d.data(),id:d.id}));if(!s.metadata.fromCache)ok('members');upd()},fail);
  db.collection('reps').onSnapshot(s=>{REPS={};s.docs.forEach(d=>REPS[d.id]=d.data());if(!s.metadata.fromCache){repsLoaded=true;ok('reps')}upd()},fail);
  db.collection('roles').onSnapshot(s=>{ROLES={};s.docs.forEach(d=>ROLES[d.id]=d.data());if(!s.metadata.fromCache)ok('roles');upd()},fail);
  db.doc('config/org').onSnapshot(s=>{const d=s.exists?s.data():null;if(d&&Array.isArray(d.teams))ORGCFG={name:d.name||'AIDataPlatform',teams:d.teams};if(!s.metadata.fromCache)ok('org');if(route()!=='org')ORGD=null;upd()},fail);
