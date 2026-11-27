@@ -25,6 +25,7 @@ service cloud.firestore {
     match /config/{id}  { allow read: if member(); allow write: if admin(); }
     match /roles/{id}   { allow read: if member(); allow write: if admin(); }
     match /reps/{uid}   { allow read: if member(); allow write: if admin() || (member() && request.auth.uid == uid); }
+    match /presence/{uid} { allow read: if member(); allow write: if member() && request.auth.uid == uid; }
     match /goals/{id}   { allow read: if member(); allow write: if leader(); }
     match /commits/{id} { allow read, write: if member(); }
     match /customers/{id} { allow read, write: if member(); }
