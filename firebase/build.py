@@ -22,16 +22,20 @@ def main():
     cfg_raw = os.environ.get('FIREBASE_WEB_CONFIG', '').strip()
     cfg = {}
     if cfg_raw:
-        # 콘솔에서 복사한 JS 객체 형태(키에 따옴표 없음)도 받아 준다
-        txt = cfg_raw
-        m = re.search(r'\{.*\}', txt, re.S)
-        if m:
-            txt = m.group(0)
-        txt = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', txt)
-        txt = txt.replace("'", '"')
-        txt = re.sub(r',\s*}', '}', txt)
-        cfg = json.loads(txt)
+        # 콘솔에서 복사한 내용 그대로(import 줄, // 주석, const firebaseConfig = {...}) 넣어도 되도록
+        # 필요한 항목만 골라 읽는다. 순수 JSON 이어도 같은 방식으로 읽힌다.
+        keys = ('apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId', 'databaseURL')
+        for k in keys:
+            m = re.search(r'["\']?' + k + r'["\']?\s*:\s*["\']([^"\']+)["\']', cfg_raw)
+            if m:
+                cfg[k] = m.group(1).strip()
+        missing = [k for k in ('apiKey', 'authDomain', 'projectId', 'appId') if k not in cfg]
+        if missing:
+            sys.exit('FIREBASE_WEB_CONFIG 에서 다음 항목을 찾지 못했습니다: ' + ', '.join(missing) +
+                     ' — Firebase 콘솔 > 프로젝트 설정 > 내 앱의 firebaseConfig 블록을 다시 복사해 넣어 주세요.')
     owners = [e.strip().lower() for e in os.environ.get('OWNER_EMAIL', '').split(',') if e.strip()]
+    if cfg and not owners:
+        sys.exit('OWNER_EMAIL 이 비어 있습니다. GitHub Secrets 에 관리자 메일을 넣어 주세요.')
 
     title = re.search(r'<title>(.*?)</title>', app)
     head = (
